@@ -1,0 +1,87 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAppAuth } from '@/components/providers';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  Building2,
+  ShoppingCart,
+  Warehouse,
+  Wallet,
+  Link2,
+  LogOut,
+  PackageCheck,
+  BarChart3,
+} from 'lucide-react';
+
+const links = [
+  { href: '/contas/', label: 'Contas', icon: Building2 },
+  { href: '/dashboard/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/pedidos/', label: 'Pedidos', icon: ShoppingCart },
+  { href: '/expedicao/', label: 'Expedição', icon: PackageCheck },
+  { href: '/estoque/', label: 'Estoque', icon: Warehouse },
+  { href: '/financeiro/', label: 'Financeiro', icon: Wallet },
+  { href: '/relatorios/', label: 'Relatórios', icon: BarChart3 },
+  { href: '/integracoes/', label: 'Integrações', icon: Link2 },
+];
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { user, code, logout, loading } = useAppAuth();
+
+  if (loading) {
+    return <div className="grid min-h-screen place-items-center text-sm text-[var(--muted-foreground)]">Carregando…</div>;
+  }
+
+  if (!user && !pathname?.startsWith('/login') && !pathname?.startsWith('/register')) {
+    if (typeof window !== 'undefined') window.location.href = '/login/';
+    return null;
+  }
+
+  if (pathname?.startsWith('/login') || pathname?.startsWith('/register')) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <aside className="hidden w-64 flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] lg:flex">
+        <div className="border-b border-white/10 p-4">
+          <p className="text-lg font-semibold">Bild Fitness</p>
+          <p className="truncate text-xs text-white/60">{user?.companyName}</p>
+          <p className="mt-2 inline-flex rounded bg-[var(--primary)]/30 px-2 py-0.5 text-[11px] font-semibold">
+            Conta {code}
+          </p>
+        </div>
+        <nav className="flex-1 space-y-1 p-2">
+          {links.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || pathname?.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
+                  active ? 'bg-[var(--primary)] text-white' : 'hover:bg-white/10',
+                )}
+              >
+                <Icon className="size-4" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="border-t border-white/10 p-3">
+          <p className="truncate text-xs text-white/70">{user?.name}</p>
+          <Button variant="ghost" className="mt-2 w-full justify-start text-white hover:bg-white/10" onClick={logout}>
+            <LogOut className="size-4" />
+            Sair
+          </Button>
+        </div>
+      </aside>
+      <main className="flex-1 p-4 sm:p-6">{children}</main>
+    </div>
+  );
+}

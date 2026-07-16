@@ -1,32 +1,15 @@
-# dependencies
-node_modules/
-
-# next.js
-.next/
-out/
-dist/
-build/
-
-# env & secrets
+node_modules
+.next
+out
+dist
 .env
 .env.local
-.env.*.local
-
-# database
-*.db
-*.db-journal
-prisma/dev.db
-prisma/dev.db-journal
-
-# uploads / logs
-uploads/
 *.log
 .DS_Store
-coverage/
-*.tsbuildinfo
-
-# obsolete (legado)
-backend/
-frontend/
+frontend/out
+frontend/.next
+backend/dist
+packages/shared/dist
 .vercel
-.env*
+tsconfig.tsbuildinfo
+*.tsbuildinfo
