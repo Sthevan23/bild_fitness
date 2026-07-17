@@ -57,26 +57,32 @@ model Company {
   id        String   @id @default(uuid())
   name      String
   logoUrl   String?  @map("logo_url")
-  theme     String   @default("light")
+  theme     String   @default("planilha")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users       User[]
-  products    Product[]
-  customers   Customer[]
-  suppliers   Supplier[]
-  orders      Order[]
-  movements   StockMovement[]
-  finance     FinanceEntry[]
+  users                  User[]
+  products               Product[]
+  customers              Customer[]
+  suppliers              Supplier[]
+  orders                 Order[]
+  movements              StockMovement[]
+  finance                FinanceEntry[]
   invoices               Invoice[]
   nfeImports             NfeImport[]
   marketplaceConnections MarketplaceConnection[]
   salesAccounts          SalesAccount[]
+  accountTaxRates        AccountTaxRate[]
+  modelCosts             ModelCost[]
+  mlSaleRaws             MlSaleRaw[]
+  purchaseDeliveries     PurchaseDelivery[]
+  spreadsheetImports     SpreadsheetImport[]
+  costAllocations        CostAllocation[]
 
   @@map("companies")
 }
 
-/** Contas/CNPJs da empresa (PEP, RC, PCP) com estoque separado */
+/** Contas/CNPJs da empresa (P&P, RC, PCP) com estoque separado */
 model SalesAccount {
   id        String   @id @default(uuid())
   companyId String   @map("company_id")
@@ -92,10 +98,43 @@ model SalesAccount {
   orders      Order[]
   movements   StockMovement[]
   connections MarketplaceConnection[]
+  taxRates    AccountTaxRate[]
+  mlSales     MlSaleRaw[]
+  deliveries  PurchaseDelivery[]
 
   @@unique([companyId, code])
   @@index([companyId])
   @@map("sales_accounts")
+}
+
+model AccountTaxRate {
+  id          String       @id @default(uuid())
+  companyId   String       @map("company_id")
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountId   String       @map("account_id")
+  account     SalesAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  channel     String       @default("ML")
+  ratePercent Decimal      @map("rate_percent")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@unique([accountId, channel])
+  @@index([companyId])
+  @@map("account_tax_rates")
+}
+
+model ModelCost {
+  id        String   @id @default(uuid())
+  companyId String   @map("company_id")
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  modelCode String   @map("model_code")
+  costPerKg Decimal  @map("cost_per_kg")
+  supplier  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, modelCode])
+  @@map("model_costs")
 }
 
 model AccountStock {
@@ -274,6 +313,8 @@ model Product {
   salePrice     Decimal         @default(0) @map("sale_price")
   brand         String?
   linkedSkus    String?         @map("linked_skus")
+  weightKg      Decimal?        @map("weight_kg")
+  modelCode     String?         @map("model_code")
   imageUrl      String?         @map("image_url")
   mlItemId      String?         @map("ml_item_id")
   mlStatus      String?         @map("ml_status")
@@ -284,11 +325,27 @@ model Product {
   movements     StockMovement[]
   orderItems    OrderItem[]
   accountStocks AccountStock[]
+  kitAsKit      ProductKitComponent[] @relation("KitProduct")
+  kitAsComponent ProductKitComponent[] @relation("ComponentProduct")
+  deliveryLines PurchaseDeliveryLine[]
 
   @@unique([companyId, sku])
   @@index([companyId, name])
   @@index([companyId, mlItemId])
   @@map("products")
+}
+
+model ProductKitComponent {
+  id                 String  @id @default(uuid())
+  kitProductId       String  @map("kit_product_id")
+  kitProduct         Product @relation("KitProduct", fields: [kitProductId], references: [id], onDelete: Cascade)
+  componentProductId String  @map("component_product_id")
+  componentProduct   Product @relation("ComponentProduct", fields: [componentProductId], references: [id], onDelete: Cascade)
+  quantity           Decimal @default(1)
+
+  @@unique([kitProductId, componentProductId])
+  @@index([componentProductId])
+  @@map("product_kit_components")
 }
 
 model StockMovement {
@@ -354,14 +411,18 @@ model Order {
 }
 
 model OrderItem {
-  id         String  @id @default(uuid())
-  orderId    String  @map("order_id")
-  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId  String  @map("product_id")
-  product    Product @relation(fields: [productId], references: [id])
-  quantity   Decimal
-  unitPrice  Decimal @map("unit_price")
-  totalPrice Decimal @map("total_price")
+  id           String  @id @default(uuid())
+  orderId      String  @map("order_id")
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String  @map("product_id")
+  product      Product @relation(fields: [productId], references: [id])
+  quantity     Decimal
+  unitPrice    Decimal @map("unit_price")
+  totalPrice   Decimal @map("total_price")
+  productCost  Decimal @default(0) @map("product_cost")
+  taxAmount    Decimal @default(0) @map("tax_amount")
+  grossProfit  Decimal @default(0) @map("gross_profit")
+  marginPercent Decimal @default(0) @map("margin_percent")
 
   @@map("order_items")
 }
@@ -426,4 +487,113 @@ model NfeImport {
 
   @@unique([companyId, accessKey])
   @@map("nfe_imports")
+}
+
+/** Staging do relatório ML (aba Dados_ML) */
+model MlSaleRaw {
+  id               String        @id @default(uuid())
+  companyId        String        @map("company_id")
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountId        String?       @map("account_id")
+  account          SalesAccount? @relation(fields: [accountId], references: [id])
+  externalSaleId   String        @map("external_sale_id")
+  soldAt           DateTime?     @map("sold_at")
+  sku              String?
+  title            String?
+  units            Decimal       @default(1)
+  revenueProducts  Decimal       @default(0) @map("revenue_products")
+  fees             Decimal       @default(0)
+  shippingRevenue  Decimal       @default(0) @map("shipping_revenue")
+  shippingFees     Decimal       @default(0) @map("shipping_fees")
+  total            Decimal       @default(0)
+  buyerName        String?       @map("buyer_name")
+  status           String?
+  mlItemId         String?       @map("ml_item_id")
+  rawJson          String?       @map("raw_json")
+  importBatchId    String?       @map("import_batch_id")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@unique([companyId, externalSaleId])
+  @@index([companyId, soldAt])
+  @@index([accountId, soldAt])
+  @@map("ml_sale_raws")
+}
+
+enum PurchaseDeliveryStatus {
+  PEDIDO
+  ENTREGA
+}
+
+model PurchaseDelivery {
+  id          String                 @id @default(uuid())
+  companyId   String                 @map("company_id")
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountId   String                 @map("account_id")
+  account     SalesAccount           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  supplierName String?               @map("supplier_name")
+  status      PurchaseDeliveryStatus @default(PEDIDO)
+  orderedAt   DateTime?              @map("ordered_at")
+  deliveredAt DateTime?              @map("delivered_at")
+  notes       String?
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+  stockApplied Boolean                @default(false) @map("stock_applied")
+  lines       PurchaseDeliveryLine[]
+
+  @@index([companyId, accountId])
+  @@map("purchase_deliveries")
+}
+
+model PurchaseDeliveryLine {
+  id         String           @id @default(uuid())
+  deliveryId String           @map("delivery_id")
+  delivery   PurchaseDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  productId  String?          @map("product_id")
+  product    Product?         @relation(fields: [productId], references: [id])
+  description String
+  quantity   Decimal          @default(0)
+  unitCost   Decimal          @default(0) @map("unit_cost")
+
+  @@map("purchase_delivery_lines")
+}
+
+model SpreadsheetImport {
+  id           String       @id @default(uuid())
+  companyId    String       @map("company_id")
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fileName     String       @map("file_name")
+  status       ImportStatus @default(PENDING)
+  productsUpserted Int      @default(0) @map("products_upserted")
+  salesImported    Int      @default(0) @map("sales_imported")
+  stockUpdated     Int      @default(0) @map("stock_updated")
+  deliveriesImported Int    @default(0) @map("deliveries_imported")
+  financeImported  Int      @default(0) @map("finance_imported")
+  message      String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt])
+  @@map("spreadsheet_imports")
+}
+
+/** Custos fixos/variáveis com rateio % (aba FINANCEIRO) */
+model CostAllocation {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  monthLabel  String   @map("month_label")
+  category    String
+  description String
+  amount      Decimal  @default(0)
+  ratePcp     Decimal  @default(0) @map("rate_pcp")
+  rateRc      Decimal  @default(0) @map("rate_rc")
+  ratePp      Decimal  @default(0) @map("rate_pp")
+  allocatedPcp Decimal @default(0) @map("allocated_pcp")
+  allocatedRc  Decimal @default(0) @map("allocated_rc")
+  allocatedPp  Decimal @default(0) @map("allocated_pp")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, monthLabel, description])
+  @@index([companyId, monthLabel])
+  @@map("cost_allocations")
 }

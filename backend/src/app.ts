@@ -14,6 +14,9 @@ import {
   mercadolivreCallbackHandler,
 } from './modules/marketplace/presentation/marketplace.routes.js';
 import { nfeRouter } from './modules/nfe/presentation/nfe.routes.js';
+import { spreadsheetImportRouter } from './modules/spreadsheet-import/presentation/spreadsheet-import.routes.js';
+import { salesRouter } from './modules/sales/presentation/sales.routes.js';
+import { purchasingRouter } from './modules/purchasing/presentation/purchasing.routes.js';
 
 export function createApp() {
   const app = express();
@@ -25,7 +28,7 @@ export function createApp() {
       credentials: true,
     }),
   );
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '50mb' }));
   app.use(cookieParser());
 
   app.get('/health', (_req, res) => {
@@ -40,6 +43,9 @@ export function createApp() {
   app.use('/finance', financeRouter);
   app.use('/marketplace', marketplaceRouter);
   app.use('/nfe', nfeRouter);
+  app.use('/imports', spreadsheetImportRouter);
+  app.use('/sales', salesRouter);
+  app.use('/purchasing', purchasingRouter);
 
   app.get('/marketplace/mercadolivre/callback', mercadolivreCallbackHandler);
 

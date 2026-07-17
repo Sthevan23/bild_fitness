@@ -1,12 +1,21 @@
 import { z } from 'zod';
 
-export const ACCOUNT_CODES = ['PEP', 'RC', 'PCP'] as const;
+export const ACCOUNT_CODES = ['P&P', 'RC', 'PCP'] as const;
 export type AccountCode = (typeof ACCOUNT_CODES)[number];
 
+/** Aceita legado PEP e variantes da planilha (P&P ML → P&P). */
 export function normalizeAccountCode(value?: string | null): AccountCode {
-  const code = (value || 'PEP').toUpperCase();
-  return (ACCOUNT_CODES as readonly string[]).includes(code) ? (code as AccountCode) : 'PEP';
+  let code = (value || 'P&P').trim().toUpperCase();
+  if (code === 'PEP' || code === 'PAP' || code === 'P E P') code = 'P&P';
+  if (code.endsWith(' ML') || code.endsWith(' SH')) code = code.slice(0, -3).trim();
+  return (ACCOUNT_CODES as readonly string[]).includes(code) ? (code as AccountCode) : 'P&P';
 }
+
+export const ACCOUNT_DISPLAY: Record<AccountCode, string> = {
+  'P&P': 'P&P',
+  RC: 'RC',
+  PCP: 'PCP',
+};
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -40,7 +49,12 @@ export type SessionUser = {
   role: 'ADMIN' | 'FINANCEIRO' | 'EXPEDICAO' | 'ESTOQUE';
   companyId: string;
   companyName: string;
+  theme: string;
 };
+
+export const updateThemeSchema = z.object({
+  theme: z.string().min(1).max(40),
+});
 
 export type ApiErrorBody = { error: string };
 export type ApiOkBody<T = Record<string, unknown>> = { ok: true } & T;

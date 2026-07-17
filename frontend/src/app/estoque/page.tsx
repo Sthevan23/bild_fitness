@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api-client';
+import { api, type StockOverviewRow } from '@/lib/api-client';
 import { useAppAuth } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,14 +21,20 @@ type Product = {
 export default function EstoquePage() {
   const { code } = useAppAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [overview, setOverview] = useState<StockOverviewRow[]>([]);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [tab, setTab] = useState<'conta' | 'planilha'>('conta');
 
   function load(q?: string) {
     api
       .products(q)
       .then((r) => setProducts(r.products as Product[]))
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Erro'));
+    api
+      .stockOverview(q)
+      .then((r) => setOverview(r.rows))
+      .catch(() => {});
   }
 
   useEffect(() => {
@@ -66,6 +72,14 @@ export default function EstoquePage() {
         <Button onClick={() => setShowCreate(true)}>Novo produto</Button>
       </div>
       <div className="flex gap-2">
+        <Button size="sm" variant={tab === 'conta' ? 'default' : 'outline'} onClick={() => setTab('conta')}>
+          Conta {code}
+        </Button>
+        <Button size="sm" variant={tab === 'planilha' ? 'default' : 'outline'} onClick={() => setTab('planilha')}>
+          Visão planilha (PCP/RC/P&P)
+        </Button>
+      </div>
+      <div className="flex gap-2">
         <Input
           placeholder="Buscar…"
           value={search}
@@ -77,7 +91,8 @@ export default function EstoquePage() {
         </Button>
       </div>
       <div className="space-y-2">
-        {products.map((p) => (
+        {tab === 'conta' &&
+          products.map((p) => (
           <Card key={p.id}>
             <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
               <div>
@@ -123,6 +138,37 @@ export default function EstoquePage() {
             </CardContent>
           </Card>
         ))}
+
+        {tab === 'planilha' && (
+          <Card>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full text-sm">
+                <thead className="border-b text-left text-xs text-[var(--muted-foreground)]">
+                  <tr>
+                    <th className="p-3">Descrição</th>
+                    <th className="p-3 text-right">PCP</th>
+                    <th className="p-3 text-right">RC</th>
+                    <th className="p-3 text-right">P&P</th>
+                    <th className="p-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overview.map((r) => (
+                    <tr key={r.id} className="border-b border-[var(--border)]/50">
+                      <td className="p-3">{r.name}</td>
+                      <td className={`p-3 text-right ${r.pcp < 0 ? 'text-red-600' : ''}`}>{r.pcp}</td>
+                      <td className={`p-3 text-right ${r.rc < 0 ? 'text-red-600' : ''}`}>{r.rc}</td>
+                      <td className={`p-3 text-right ${r.pp < 0 ? 'text-red-600' : ''}`}>{r.pp}</td>
+                      <td className={`p-3 text-right font-medium ${r.total < 0 ? 'text-red-600' : ''}`}>
+                        {r.total}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {showCreate && (

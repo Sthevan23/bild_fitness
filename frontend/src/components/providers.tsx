@@ -25,7 +25,7 @@ const AuthCtx = createContext<Ctx | null>(null);
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [code, setCode] = useState<AccountCode>('PEP');
+  const [code, setCode] = useState<AccountCode>('P&P');
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {

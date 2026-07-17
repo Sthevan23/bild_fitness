@@ -1,3 +1,4 @@
+import { normalizeAccountCode } from '@pep/shared';
 import { prisma } from '../../../shared/prisma.js';
 import { AppError } from '../../../shared/errors.js';
 import {
@@ -45,6 +46,44 @@ export class ListProductsUseCase {
   }
 }
 
+/** Visão ESTOQUE da planilha: saldo por produto em PCP / RC / P&P / total */
+export class StockOverviewUseCase {
+  async execute(companyId: string, search?: string) {
+    await ensureSalesAccounts(companyId);
+    const products = await prisma.product.findMany({
+      where: {
+        companyId,
+        ...(search
+          ? { OR: [{ name: { contains: search } }, { sku: { contains: search } }] }
+          : {}),
+        NOT: { sku: { startsWith: 'KIT' } },
+      },
+      include: { accountStocks: { include: { account: { select: { code: true } } } } },
+      orderBy: { name: 'asc' },
+    });
+
+    return products
+      .filter((p) => !p.sku.startsWith('PAR'))
+      .map((p) => {
+        const byCode = (code: string) =>
+          toNum(p.accountStocks.find((s) => s.account.code === code)?.stock);
+        const pcp = byCode('PCP');
+        const rc = byCode('RC');
+        const pp = byCode('P&P');
+        const total = pcp + rc + pp;
+        return {
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          pcp,
+          rc,
+          pp,
+          total,
+        };
+      });
+  }
+}
+
 export class CreateProductUseCase {
   async execute(
     companyId: string,
@@ -63,8 +102,7 @@ export class CreateProductUseCase {
     activeCode?: string,
   ) {
     const accounts = await ensureSalesAccounts(companyId);
-    const target = (activeCode || 'PEP').toUpperCase();
-    try {
+    const target = normalizeAccountCode(activeCode);    try {
       const product = await prisma.product.create({
         data: {
           companyId,

@@ -31,7 +31,7 @@ accountsRouter.get('/', async (req: AuthedRequest, res) => {
 accountsRouter.get('/hub', async (req: AuthedRequest, res) => {
   try {
     const active = req.cookies?.[ACTIVE_COOKIE] || req.query.code;
-    const data = await hub.execute(req.user!.companyId, String(active || 'PEP'));
+    const data = await hub.execute(req.user!.companyId, String(active || 'P&P'));
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Erro' });
@@ -39,7 +39,7 @@ accountsRouter.get('/hub', async (req: AuthedRequest, res) => {
 });
 
 accountsRouter.get('/active', async (req: AuthedRequest, res) => {
-  const code = req.cookies?.[ACTIVE_COOKIE] || 'PEP';
+  const code = req.cookies?.[ACTIVE_COOKIE] || 'P&P';
   res.json({ code });
 });
 
@@ -62,7 +62,7 @@ accountsRouter.post('/active', async (req: AuthedRequest, res) => {
 accountsRouter.patch('/:code', async (req: AuthedRequest, res) => {
   try {
     const result = await update.execute(req.user!.companyId, {
-      code: req.params.code,
+      code: decodeURIComponent(String(req.params.code)),
       ...req.body,
     });
     res.json(result);

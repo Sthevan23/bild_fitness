@@ -1,8 +1,8 @@
-import bcrypt from 'bcryptjs';
-import { loginSchema, registerSchema, type SessionUser } from '@pep/shared';
+import { updateThemeSchema, loginSchema, registerSchema, type SessionUser } from '@pep/shared';
 import { prisma } from '../../../shared/prisma.js';
 import { AppError } from '../../../shared/errors.js';
 import { ensureSalesAccountRows } from '../../accounts/infrastructure/accounts.repo.js';
+import bcrypt from 'bcryptjs';
 
 export class LoginUseCase {
   async execute(input: unknown): Promise<SessionUser> {
@@ -21,6 +21,7 @@ export class LoginUseCase {
       role: user.role,
       companyId: user.companyId,
       companyName: user.company.name,
+      theme: user.company.theme || 'planilha',
     };
   }
 }
@@ -34,6 +35,7 @@ export class RegisterUseCase {
     const company = await prisma.company.create({
       data: {
         name: data.companyName,
+        theme: 'planilha',
         users: {
           create: {
             name: data.name,
@@ -63,6 +65,18 @@ export class MeUseCase {
       role: user.role,
       companyId: user.companyId,
       companyName: user.company.name,
+      theme: user.company.theme || 'planilha',
     };
+  }
+}
+
+export class UpdateThemeUseCase {
+  async execute(companyId: string, input: unknown) {
+    const data = updateThemeSchema.parse(input);
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { theme: data.theme },
+    });
+    return { ok: true as const, theme: data.theme };
   }
 }

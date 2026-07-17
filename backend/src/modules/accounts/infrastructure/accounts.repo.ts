@@ -1,13 +1,31 @@
-import { ACCOUNT_CODES, type AccountCode } from '@pep/shared';
+import { ACCOUNT_CODES, normalizeAccountCode, type AccountCode } from '@pep/shared';
 import { prisma } from '../../../shared/prisma.js';
 
 export async function ensureSalesAccountRows(companyId: string) {
+  // Migra legado PEP → P&P
+  const legacy = await prisma.salesAccount.findFirst({
+    where: { companyId, code: 'PEP' },
+  });
+  if (legacy) {
+    const existingPp = await prisma.salesAccount.findFirst({
+      where: { companyId, code: 'P&P' },
+    });
+    if (!existingPp) {
+      await prisma.salesAccount.update({
+        where: { id: legacy.id },
+        data: { code: 'P&P', name: 'P&P' },
+      });
+    } else {
+      await prisma.salesAccount.delete({ where: { id: legacy.id } });
+    }
+  }
+
   const accounts = [];
   for (const code of ACCOUNT_CODES) {
     const account = await prisma.salesAccount.upsert({
       where: { companyId_code: { companyId, code } },
-      create: { companyId, code, name: code.toLowerCase() },
-      update: { active: true },
+      create: { companyId, code, name: code },
+      update: { active: true, name: code },
     });
     accounts.push(account);
   }
@@ -48,7 +66,7 @@ export async function syncProductTotalStock(productId: string) {
 
 export async function resolveActiveAccount(companyId: string, code?: string | null) {
   const accounts = await ensureSalesAccountRows(companyId);
-  const normalized = ((code || 'PEP').toUpperCase() as AccountCode);
+  const normalized = normalizeAccountCode(code);
   const account = accounts.find((a) => a.code === normalized) ?? accounts[0];
   if (!account) throw new Error('Nenhuma conta configurada');
   return { ...account, code: account.code as AccountCode };

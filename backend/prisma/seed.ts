@@ -27,11 +27,29 @@ async function main() {
     update: { password, active: true, role: 'ADMIN' },
   });
 
-  for (const code of ['PEP', 'RC', 'PCP']) {
+  // Migra PEP legado → P&P
+  const legacy = await prisma.salesAccount.findFirst({
+    where: { companyId: company.id, code: 'PEP' },
+  });
+  if (legacy) {
+    const existing = await prisma.salesAccount.findFirst({
+      where: { companyId: company.id, code: 'P&P' },
+    });
+    if (!existing) {
+      await prisma.salesAccount.update({
+        where: { id: legacy.id },
+        data: { code: 'P&P', name: 'P&P', active: true },
+      });
+    } else {
+      await prisma.salesAccount.delete({ where: { id: legacy.id } });
+    }
+  }
+
+  for (const code of ['P&P', 'RC', 'PCP']) {
     await prisma.salesAccount.upsert({
       where: { companyId_code: { companyId: company.id, code } },
-      create: { companyId: company.id, code, name: code.toLowerCase() },
-      update: { active: true },
+      create: { companyId: company.id, code, name: code },
+      update: { active: true, name: code },
     });
   }
 

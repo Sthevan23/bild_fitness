@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppAuth } from '@/components/providers';
 import { Button } from '@/components/ui/button';
@@ -15,16 +14,24 @@ import {
   LogOut,
   PackageCheck,
   BarChart3,
+  FileSpreadsheet,
+  Receipt,
+  Truck,
+  ClipboardList,
 } from 'lucide-react';
 
 const links = [
   { href: '/contas/', label: 'Contas', icon: Building2 },
   { href: '/dashboard/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/vendas/', label: 'Vendas', icon: Receipt },
   { href: '/pedidos/', label: 'Pedidos', icon: ShoppingCart },
+  { href: '/reposicao/', label: 'Reposição', icon: ClipboardList },
+  { href: '/compras/', label: 'Compras', icon: Truck },
   { href: '/expedicao/', label: 'Expedição', icon: PackageCheck },
   { href: '/estoque/', label: 'Estoque', icon: Warehouse },
   { href: '/financeiro/', label: 'Financeiro', icon: Wallet },
   { href: '/relatorios/', label: 'Relatórios', icon: BarChart3 },
+  { href: '/importar/', label: 'Importar', icon: FileSpreadsheet },
   { href: '/integracoes/', label: 'Integrações', icon: Link2 },
 ];
 
@@ -46,42 +53,62 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="hidden w-64 flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] lg:flex">
-        <div className="border-b border-white/10 p-4">
-          <p className="text-lg font-semibold">Bild Fitness</p>
-          <p className="truncate text-xs text-white/60">{user?.companyName}</p>
-          <p className="mt-2 inline-flex rounded bg-[var(--primary)]/30 px-2 py-0.5 text-[11px] font-semibold">
-            Conta {code}
-          </p>
-        </div>
-        <nav className="flex-1 space-y-1 p-2">
-          {links.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname?.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
-                  active ? 'bg-[var(--primary)] text-white' : 'hover:bg-white/10',
-                )}
-              >
-                <Icon className="size-4" />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="border-t border-white/10 p-3">
-          <p className="truncate text-xs text-white/70">{user?.name}</p>
-          <Button variant="ghost" className="mt-2 w-full justify-start text-white hover:bg-white/10" onClick={logout}>
-            <LogOut className="size-4" />
-            Sair
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 p-4 sm:p-6">{children}</main>
+    <div className="min-h-screen">
+      <nav className="sticky top-0 z-40 flex gap-1 overflow-x-auto border-b bg-[var(--sidebar)] p-2 text-[var(--sidebar-foreground)] md:hidden">
+        {links.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || pathname?.startsWith(href);
+          return (
+            <a
+              key={href}
+              href={href}
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs',
+                active ? 'bg-[var(--primary)] text-white' : 'hover:bg-white/10',
+              )}
+            >
+              <Icon className="size-4" />
+              {label}
+            </a>
+          );
+        })}
+      </nav>
+      <div className="flex min-h-screen">
+        <aside className="hidden w-56 shrink-0 flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] md:flex lg:w-64">
+          <div className="border-b border-white/10 p-4">
+            <p className="text-lg font-semibold">Bild Fitness</p>
+            <p className="truncate text-xs text-white/60">{user?.companyName}</p>
+            <p className="mt-2 inline-flex rounded bg-[var(--primary)]/30 px-2 py-0.5 text-[11px] font-semibold">
+              Conta {code}
+            </p>
+          </div>
+          <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+            {links.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname?.startsWith(href);
+              return (
+                <a
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
+                    active ? 'bg-[var(--primary)] text-white' : 'hover:bg-white/10',
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </a>
+              );
+            })}
+          </nav>
+          <div className="border-t border-white/10 p-3">
+            <p className="truncate text-xs text-white/70">{user?.name}</p>
+            <Button variant="ghost" className="mt-2 w-full justify-start text-white hover:bg-white/10" onClick={logout}>
+              <LogOut className="size-4" />
+              Sair
+            </Button>
+          </div>
+        </aside>
+        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
+      </div>
     </div>
   );
 }

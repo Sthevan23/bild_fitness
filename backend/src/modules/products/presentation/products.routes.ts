@@ -4,17 +4,31 @@ import {
   CreateProductUseCase,
   DeleteProductUseCase,
   ListProductsUseCase,
+  StockOverviewUseCase,
 } from '../application/products.usecases.js';
 import { authMiddleware, type AuthedRequest } from '../../../shared/auth.js';
 import { isAppError } from '../../../shared/errors.js';
 
 export const productsRouter = Router();
 const list = new ListProductsUseCase();
+const overview = new StockOverviewUseCase();
 const create = new CreateProductUseCase();
 const adjust = new AdjustStockUseCase();
 const del = new DeleteProductUseCase();
 
 productsRouter.use(authMiddleware);
+
+productsRouter.get('/stock-overview', async (req: AuthedRequest, res) => {
+  try {
+    const rows = await overview.execute(
+      req.user!.companyId,
+      req.query.search ? String(req.query.search) : undefined,
+    );
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Erro' });
+  }
+});
 
 productsRouter.get('/', async (req: AuthedRequest, res) => {
   try {

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { api, type HubAccount } from '@/lib/api-client';
 import { useAppAuth } from '@/components/providers';
 import { Button } from '@/components/ui/button';
@@ -9,11 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
+import { Building2, LogIn, PlugZap, RefreshCw, Unplug } from 'lucide-react';
 import type { AccountCode } from '@pep/shared';
 import { toast } from 'sonner';
-import { Building2, LogIn, PlugZap, RefreshCw, Unplug } from 'lucide-react';
 
-const FALLBACK: HubAccount[] = (['PEP', 'RC', 'PCP'] as AccountCode[]).map((code, i) => ({
+const FALLBACK: HubAccount[] = (['P&P', 'RC', 'PCP'] as AccountCode[]).map((code, i) => ({
   id: `f-${code}`,
   code,
   name: code.toLowerCase(),
@@ -25,7 +24,6 @@ const FALLBACK: HubAccount[] = (['PEP', 'RC', 'PCP'] as AccountCode[]).map((code
 }));
 
 export default function ContasPage() {
-  const router = useRouter();
   const { code: activeCode, setAccount, refresh } = useAppAuth();
   const [accounts, setAccounts] = useState<HubAccount[]>(FALLBACK);
   const [editing, setEditing] = useState<AccountCode | null>(null);
@@ -57,7 +55,7 @@ export default function ContasPage() {
       if (!ok) return;
       await refresh();
       toast.success(`Entrou na conta ${code}`);
-      router.push('/dashboard/');
+      window.location.href = '/dashboard/';
     } finally {
       setPending(false);
     }
@@ -90,7 +88,7 @@ export default function ContasPage() {
       <div>
         <h1 className="text-2xl font-semibold">Contas da empresa</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Cada CNPJ (PEP/RC/PCP) tem controle isolado. Conta ativa: <Badge variant="info">{activeCode}</Badge>
+          Cada CNPJ (P&P/RC/PCP) tem controle isolado. Conta ativa: <Badge variant="info">{activeCode}</Badge>
         </p>
       </div>
 

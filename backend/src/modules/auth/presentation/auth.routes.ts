@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { LoginUseCase, RegisterUseCase, MeUseCase } from '../application/auth.usecases.js';
+import { LoginUseCase, RegisterUseCase, MeUseCase, UpdateThemeUseCase } from '../application/auth.usecases.js';
 import {
   authMiddleware,
   setAuthCookie,
@@ -13,6 +13,7 @@ export const authRouter = Router();
 const login = new LoginUseCase();
 const register = new RegisterUseCase();
 const me = new MeUseCase();
+const updateTheme = new UpdateThemeUseCase();
 
 authRouter.post('/login', async (req, res) => {
   try {
@@ -48,5 +49,15 @@ authRouter.get('/me', authMiddleware, async (req: AuthedRequest, res) => {
   } catch (e) {
     const status = isAppError(e) ? e.statusCode : 401;
     res.status(status).json({ error: e instanceof Error ? e.message : 'Não autenticado' });
+  }
+});
+
+authRouter.patch('/theme', authMiddleware, async (req: AuthedRequest, res) => {
+  try {
+    const result = await updateTheme.execute(req.user!.companyId, req.body);
+    res.json(result);
+  } catch (e) {
+    const status = isAppError(e) ? e.statusCode : 400;
+    res.status(status).json({ error: e instanceof Error ? e.message : 'Erro ao salvar tema' });
   }
 });
