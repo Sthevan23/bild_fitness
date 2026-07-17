@@ -108,15 +108,17 @@ model SalesAccount {
 }
 
 model AccountTaxRate {
-  id          String       @id @default(uuid())
-  companyId   String       @map("company_id")
-  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  accountId   String       @map("account_id")
-  account     SalesAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  channel     String       @default("ML")
-  ratePercent Decimal      @map("rate_percent")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id                  String       @id @default(uuid())
+  companyId           String       @map("company_id")
+  company             Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountId           String       @map("account_id")
+  account             SalesAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  channel             String       @default("ML")
+  ratePercent         Decimal      @map("rate_percent")
+  /** Meta de margem de lucro desejada (%) — usada para destacar vendas abaixo da meta */
+  targetMarginPercent Decimal      @default(15) @map("target_margin_percent")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
 
   @@unique([accountId, channel])
   @@index([companyId])

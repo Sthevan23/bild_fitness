@@ -4,6 +4,8 @@ import {
   ListAccountsUseCase,
   SetActiveAccountUseCase,
   UpdateAccountUseCase,
+  GetMarginSettingsUseCase,
+  UpdateMarginSettingsUseCase,
 } from '../application/accounts.usecases.js';
 import { authMiddleware, type AuthedRequest } from '../../../shared/auth.js';
 import { isAppError } from '../../../shared/errors.js';
@@ -14,6 +16,8 @@ const list = new ListAccountsUseCase();
 const hub = new GetAccountsHubUseCase();
 const update = new UpdateAccountUseCase();
 const setActive = new SetActiveAccountUseCase();
+const getMargin = new GetMarginSettingsUseCase();
+const updateMargin = new UpdateMarginSettingsUseCase();
 
 const ACTIVE_COOKIE = 'bild_active_account';
 
@@ -52,6 +56,29 @@ accountsRouter.post('/active', async (req: AuthedRequest, res) => {
       sameSite: 'lax',
       secure: env.cookieSecure,
     });
+    res.json(result);
+  } catch (e) {
+    const status = isAppError(e) ? e.statusCode : 400;
+    res.status(status).json({ error: e instanceof Error ? e.message : 'Erro' });
+  }
+});
+
+accountsRouter.get('/margin-settings', async (req: AuthedRequest, res) => {
+  try {
+    const data = await getMargin.execute(req.user!.companyId, req.cookies?.[ACTIVE_COOKIE]);
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Erro' });
+  }
+});
+
+accountsRouter.patch('/margin-settings', async (req: AuthedRequest, res) => {
+  try {
+    const result = await updateMargin.execute(
+      req.user!.companyId,
+      req.cookies?.[ACTIVE_COOKIE],
+      req.body,
+    );
     res.json(result);
   } catch (e) {
     const status = isAppError(e) ? e.statusCode : 400;

@@ -42,6 +42,17 @@ export const api = {
   getActiveAccount: () => request<{ code: AccountCode }>('/accounts/active'),
   updateAccount: (code: AccountCode, body: { name?: string; cnpj?: string | null }) =>
     request<{ ok: true }>(`/accounts/${encodeURIComponent(code)}`, { method: 'PATCH', json: body }),
+  marginSettings: () =>
+    request<MarginSettings>('/accounts/margin-settings'),
+  updateMarginSettings: (body: {
+    ratePercent: number;
+    targetMarginPercent: number;
+    recalculate?: boolean;
+  }) =>
+    request<MarginSettings & { ok: true; recalculated: number }>('/accounts/margin-settings', {
+      method: 'PATCH',
+      json: body,
+    }),
   dashboard: () => request<DashboardData>('/dashboard'),
   orders: (q: Record<string, string> = {}) => {
     const qs = new URLSearchParams(q).toString();
@@ -121,11 +132,16 @@ export type SaleRow = {
   taxAmount: number;
   grossProfit: number;
   marginPercent: number;
+  belowTarget: boolean;
   status: string;
 };
 
 export type SalesResponse = {
   account: AccountCode;
+  settings: {
+    ratePercent: number;
+    targetMarginPercent: number;
+  };
   rows: SaleRow[];
   totals: {
     grossRevenue: number;
@@ -135,7 +151,14 @@ export type SalesResponse = {
     units: number;
     marginPercent: number;
     count: number;
+    belowTarget: number;
   };
+};
+
+export type MarginSettings = {
+  account: AccountCode;
+  ratePercent: number;
+  targetMarginPercent: number;
 };
 
 export type ImportControleVendasResult = {
@@ -219,6 +242,8 @@ export type HubAccount = {
   cnpj: string | null;
   active: boolean;
   isSelected: boolean;
+  ratePercent?: number;
+  targetMarginPercent?: number;
   ml: {
     status: string;
     nickname: string | null;

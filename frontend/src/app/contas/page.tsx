@@ -84,30 +84,38 @@ export default function ContasPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <div>
-        <h1 className="text-2xl font-semibold">Contas da empresa</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Cada CNPJ (P&P/RC/PCP) tem controle isolado. Conta ativa: <Badge variant="info">{activeCode}</Badge>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)]">
+          Empresa
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Contas da empresa</h1>
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+          Cada CNPJ (P&P/RC/PCP) tem controle isolado. Conta ativa:{' '}
+          <Badge variant="info">{activeCode}</Badge>
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-3">
         {accounts.map((account) => (
           <Card
             key={account.code}
             className={
-              account.code === activeCode ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : undefined
+              account.code === activeCode
+                ? 'border-[var(--primary)]/50 ring-2 ring-[var(--primary)]/15'
+                : undefined
             }
           >
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)]">
-                  <Building2 className="size-5" />
-                </div>
-                <div>
-                  <CardTitle>{account.code}</CardTitle>
-                  <CardDescription>{account.name}</CardDescription>
+            <CardHeader className="space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--primary)]/15 to-[var(--primary)]/5 text-[var(--primary)] ring-1 ring-[var(--primary)]/10">
+                    <Building2 className="size-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">{account.code}</CardTitle>
+                    <CardDescription>{account.name}</CardDescription>
+                  </div>
                 </div>
                 {account.code === activeCode && <Badge variant="success">Ativa</Badge>}
               </div>
@@ -116,22 +124,28 @@ export default function ContasPage() {
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="rounded-lg border bg-[var(--muted)]/40 p-3">
-                <p className="text-xs text-[var(--muted-foreground)]">CNPJ</p>
-                <p className="font-medium">{account.cnpj || 'Não informado'}</p>
+              <div className="rounded-xl bg-[var(--muted)]/70 px-3.5 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+                  CNPJ
+                </p>
+                <p className="mt-0.5 font-medium">{account.cnpj || 'Não informado'}</p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg border p-2">
-                  <p className="text-xs text-[var(--muted-foreground)]">SKUs</p>
-                  <p className="font-semibold">{account.stock.skus}</p>
+                <div className="rounded-xl bg-[var(--muted)]/50 px-2 py-2.5">
+                  <p className="text-[11px] text-[var(--muted-foreground)]">SKUs</p>
+                  <p className="mt-0.5 text-base font-semibold tabular-nums">{account.stock.skus}</p>
                 </div>
-                <div className="rounded-lg border p-2">
-                  <p className="text-xs text-[var(--muted-foreground)]">Baixo</p>
-                  <p className="font-semibold">{account.stock.low}</p>
+                <div className="rounded-xl bg-amber-50 px-2 py-2.5">
+                  <p className="text-[11px] text-amber-700/80">Baixo</p>
+                  <p className="mt-0.5 text-base font-semibold tabular-nums text-amber-800">
+                    {account.stock.low}
+                  </p>
                 </div>
-                <div className="rounded-lg border p-2">
-                  <p className="text-xs text-[var(--muted-foreground)]">Zerado</p>
-                  <p className="font-semibold">{account.stock.zerado}</p>
+                <div className="rounded-xl bg-rose-50 px-2 py-2.5">
+                  <p className="text-[11px] text-rose-700/80">Zerado</p>
+                  <p className="mt-0.5 text-base font-semibold tabular-nums text-rose-800">
+                    {account.stock.zerado}
+                  </p>
                 </div>
               </div>
               {account.ml?.nickname && (
@@ -140,7 +154,11 @@ export default function ContasPage() {
                   {account.ml.lastSyncAt ? ` · ${formatDate(account.ml.lastSyncAt)}` : ''}
                 </p>
               )}
-              <Button className="w-full" disabled={pending || account.code === activeCode} onClick={() => onEnter(account.code)}>
+              <Button
+                className="w-full"
+                disabled={pending || account.code === activeCode}
+                onClick={() => onEnter(account.code)}
+              >
                 <LogIn className="size-4" />
                 {account.code === activeCode ? 'Conta em uso' : 'Entrar nesta conta'}
               </Button>
@@ -192,7 +210,7 @@ export default function ContasPage() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4 backdrop-blur-sm">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>Configurar {editing}</CardTitle>

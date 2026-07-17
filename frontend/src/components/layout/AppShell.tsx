@@ -40,7 +40,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, code, logout, loading } = useAppAuth();
 
   if (loading) {
-    return <div className="grid min-h-screen place-items-center text-sm text-[var(--muted-foreground)]">Carregando…</div>;
+    return (
+      <div className="grid min-h-screen place-items-center text-sm text-[var(--muted-foreground)]">
+        Carregando…
+      </div>
+    );
   }
 
   if (!user && !pathname?.startsWith('/login') && !pathname?.startsWith('/register')) {
@@ -54,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <nav className="sticky top-0 z-40 flex gap-1 overflow-x-auto border-b bg-[var(--sidebar)] p-2 text-[var(--sidebar-foreground)] md:hidden">
+      <nav className="sticky top-0 z-40 flex gap-1 overflow-x-auto border-b border-white/10 bg-[var(--sidebar)]/95 p-2 text-[var(--sidebar-foreground)] backdrop-blur md:hidden">
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href);
           return (
@@ -62,8 +66,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs',
-                active ? 'bg-[var(--primary)] text-white' : 'hover:bg-white/10',
+                'flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs transition',
+                active ? 'bg-[var(--primary)] text-white shadow-sm' : 'hover:bg-white/10',
               )}
             >
               <Icon className="size-4" />
@@ -73,15 +77,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
       <div className="flex min-h-screen">
-        <aside className="hidden w-56 shrink-0 flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] md:flex lg:w-64">
-          <div className="border-b border-white/10 p-4">
-            <p className="text-lg font-semibold">Bild Fitness</p>
-            <p className="truncate text-xs text-white/60">{user?.companyName}</p>
-            <p className="mt-2 inline-flex rounded bg-[var(--primary)]/30 px-2 py-0.5 text-[11px] font-semibold">
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-white/5 bg-[var(--sidebar)] text-[var(--sidebar-foreground)] md:flex lg:w-64">
+          <div className="border-b border-white/10 p-5">
+            <p className="text-lg font-semibold tracking-tight">Bild Fitness</p>
+            <p className="mt-0.5 truncate text-xs text-white/50">{user?.companyName}</p>
+            <p className="mt-3 inline-flex rounded-full bg-[var(--primary)]/25 px-2.5 py-1 text-[11px] font-semibold text-emerald-100 ring-1 ring-emerald-400/20">
               Conta {code}
             </p>
           </div>
-          <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+          <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
             {links.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname?.startsWith(href);
               return (
@@ -89,25 +93,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={href}
                   href={href}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
-                    active ? 'bg-[var(--primary)] text-white' : 'hover:bg-white/10',
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition',
+                    active
+                      ? 'bg-[var(--primary)] text-white shadow-md shadow-emerald-900/30'
+                      : 'text-white/75 hover:bg-white/8 hover:text-white',
                   )}
                 >
-                  <Icon className="size-4" />
+                  <Icon className="size-4 opacity-90" />
                   {label}
                 </a>
               );
             })}
           </nav>
           <div className="border-t border-white/10 p-3">
-            <p className="truncate text-xs text-white/70">{user?.name}</p>
-            <Button variant="ghost" className="mt-2 w-full justify-start text-white hover:bg-white/10" onClick={logout}>
+            <p className="truncate px-2 text-xs text-white/55">{user?.name}</p>
+            <Button
+              variant="ghost"
+              className="mt-2 w-full justify-start rounded-xl text-white/80 hover:bg-white/10 hover:text-white"
+              onClick={logout}
+            >
               <LogOut className="size-4" />
               Sair
             </Button>
           </div>
         </aside>
-        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-w-0 flex-1 animate-fade-up p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

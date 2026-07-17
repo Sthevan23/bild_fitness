@@ -39,6 +39,14 @@ export const setActiveAccountSchema = z.object({
   code: z.enum(ACCOUNT_CODES),
 });
 
+export const updateMarginSettingsSchema = z.object({
+  /** Alíquota % usada no cálculo do lucro (como na planilha) */
+  ratePercent: z.number().min(0).max(100),
+  /** Meta de margem de lucro desejada (%) */
+  targetMarginPercent: z.number().min(0).max(100),
+  recalculate: z.boolean().optional(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 

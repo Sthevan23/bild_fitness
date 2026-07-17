@@ -67,24 +67,34 @@ export class ListSalesUseCase {
       orderBy: { orderedAt: 'desc' },
     });
 
+    const tax = await prisma.accountTaxRate.findUnique({
+      where: { accountId_channel: { accountId: account.id, channel: 'ML' } },
+    });
+    const ratePercent = tax ? toNum(tax.ratePercent) : 0;
+    const targetMarginPercent = tax ? toNum(tax.targetMarginPercent) : 15;
+
     const rows = orders.flatMap((order) =>
-      order.items.map((item) => ({
-        id: item.id,
-        orderId: order.id,
-        date: order.orderedAt,
-        account: account.code,
-        quantity: toNum(item.quantity),
-        sku: item.product.sku,
-        description: item.product.name || order.notes || '',
-        customer: order.customer?.name || null,
-        netRevenue: toNum(order.netAmount),
-        grossRevenue: toNum(item.totalPrice) || toNum(order.total),
-        productCost: toNum(item.productCost),
-        taxAmount: toNum(item.taxAmount),
-        grossProfit: toNum(item.grossProfit),
-        marginPercent: toNum(item.marginPercent),
-        status: order.status,
-      })),
+      order.items.map((item) => {
+        const marginPercent = toNum(item.marginPercent);
+        return {
+          id: item.id,
+          orderId: order.id,
+          date: order.orderedAt,
+          account: account.code,
+          quantity: toNum(item.quantity),
+          sku: item.product.sku,
+          description: item.product.name || order.notes || '',
+          customer: order.customer?.name || null,
+          netRevenue: toNum(order.netAmount),
+          grossRevenue: toNum(item.totalPrice) || toNum(order.total),
+          productCost: toNum(item.productCost),
+          taxAmount: toNum(item.taxAmount),
+          grossProfit: toNum(item.grossProfit),
+          marginPercent,
+          belowTarget: marginPercent < targetMarginPercent,
+          status: order.status,
+        };
+      }),
     );
 
     const totals = rows.reduce(
@@ -94,15 +104,17 @@ export class ListSalesUseCase {
         acc.productCost += r.productCost;
         acc.grossProfit += r.grossProfit;
         acc.units += r.quantity;
+        if (r.belowTarget) acc.belowTarget += 1;
         return acc;
       },
-      { grossRevenue: 0, netRevenue: 0, productCost: 0, grossProfit: 0, units: 0 },
+      { grossRevenue: 0, netRevenue: 0, productCost: 0, grossProfit: 0, units: 0, belowTarget: 0 },
     );
 
     const marginPercent = totals.grossRevenue > 0 ? (totals.grossProfit / totals.grossRevenue) * 100 : 0;
 
     return {
       account: account.code,
+      settings: { ratePercent, targetMarginPercent },
       rows,
       totals: { ...totals, marginPercent, count: rows.length },
     };
