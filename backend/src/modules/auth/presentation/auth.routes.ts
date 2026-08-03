@@ -22,8 +22,14 @@ authRouter.post('/login', async (req, res) => {
     setAuthCookie(res, token);
     res.json({ ok: true, user, token });
   } catch (e) {
+    console.error('login error', e);
     const status = isAppError(e) ? e.statusCode : 400;
-    res.status(status).json({ error: e instanceof Error ? e.message : 'Falha no login' });
+    const message = isAppError(e)
+      ? e.message
+      : e instanceof Error && /credentials|Authentication failed|Access denied/i.test(e.message)
+        ? 'Falha de conexão com o banco. Verifique DB_USER/DB_PASS.'
+        : 'Falha no login';
+    res.status(status).json({ error: message });
   }
 });
 

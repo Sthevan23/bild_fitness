@@ -12,14 +12,15 @@ for (const p of [resolve(root, '.env'), resolve(root, '../.env'), resolve(proces
   }
 }
 
+const DB_HOST = process.env.DB_HOST || 'localhost';
+const DB_PORT = Number(process.env.DB_PORT || 3306);
+const DB_USER = process.env.DB_USER || process.env.DB_USERNAME || 'root';
+const DB_PASS = process.env.DB_PASS || process.env.DB_PASSWORD || '';
+const DB_NAME = process.env.DB_NAME || process.env.DB_DATABASE || 'pep_vendas';
+
 function buildDatabaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const host = process.env.DB_HOST || 'localhost';
-  const port = process.env.DB_PORT || '3306';
-  const user = process.env.DB_USER || process.env.DB_USERNAME || 'root';
-  const pass = process.env.DB_PASS || process.env.DB_PASSWORD || '';
-  const name = process.env.DB_NAME || process.env.DB_DATABASE || 'pep_vendas';
-  return `mysql://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/${name}`;
+  return `mysql://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASS)}@${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 }
 
 const envSchema = z.object({
@@ -48,5 +49,10 @@ if (!parsed.success) {
 
 export const env = {
   ...parsed.data,
+  DB_HOST,
+  DB_PORT,
+  DB_USER,
+  DB_PASS,
+  DB_NAME,
   cookieSecure: parsed.data.COOKIE_SECURE ?? parsed.data.NODE_ENV === 'production',
 };
