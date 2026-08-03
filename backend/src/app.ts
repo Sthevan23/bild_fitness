@@ -30,6 +30,23 @@ export function createApp() {
     res.json({ ok: true, service: 'pep-vendas-api', ts: new Date().toISOString() });
   });
 
+  app.get('/health/db', async (_req, res) => {
+    try {
+      const { prisma } = await import('./shared/prisma.js');
+      const rows = await prisma.$queryRaw`SELECT 1 AS ok`;
+      res.json({ ok: true, db: true, rows, host: env.DB_HOST, name: env.DB_NAME, user: env.DB_USER });
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        db: false,
+        host: env.DB_HOST,
+        name: env.DB_NAME,
+        user: env.DB_USER,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
+
   app.use('/auth', authRouter);
   app.use('/accounts', accountsRouter);
   app.use('/orders', ordersRouter);
