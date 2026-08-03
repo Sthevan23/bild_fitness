@@ -17,6 +17,8 @@ const updateTheme = new UpdateThemeUseCase();
 
 authRouter.post('/login', async (req, res) => {
   try {
+    const { initPrisma } = await import('../../../shared/prisma.js');
+    await initPrisma();
     const user = await login.execute(req.body);
     const token = signToken(user);
     setAuthCookie(res, token);
@@ -24,13 +26,14 @@ authRouter.post('/login', async (req, res) => {
   } catch (e) {
     console.error('login error', e);
     const status = isAppError(e) ? e.statusCode : 400;
+    const raw = e instanceof Error ? e.message : 'Falha no login';
     const message = isAppError(e)
       ? e.message
-      : e instanceof Error && /credentials|Authentication failed|Access denied/i.test(e.message)
+      : /credentials|Authentication failed|Access denied/i.test(raw)
         ? 'Falha de conexão com o banco. Verifique DB_USER/DB_PASS.'
-        : e instanceof Error && /timeout|ECONNREFUSED|ENOTFOUND|connect/i.test(e.message)
-          ? 'Não foi possível conectar ao MySQL. Use DB_HOST=127.0.0.1 e confira usuário/senha.'
-          : 'Falha no login';
+        : /timeout|ECONNREFUSED|ENOTFOUND|connect|pool|MySQL/i.test(raw)
+          ? 'Não foi possível conectar ao MySQL. Use DB_HOST=127.0.0.1.'
+          : raw;
     res.status(status).json({ error: message });
   }
 });
