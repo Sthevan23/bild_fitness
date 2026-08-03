@@ -53,7 +53,7 @@ accountsRouter.post('/active', async (req: AuthedRequest, res) => {
     res.cookie(ACTIVE_COOKIE, result.code, {
       path: '/',
       maxAge: 365 * 24 * 60 * 60 * 1000,
-      sameSite: 'lax',
+      sameSite: env.cookieSecure ? 'none' : 'lax',
       secure: env.cookieSecure,
     });
     res.json(result);

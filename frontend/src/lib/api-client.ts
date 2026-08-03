@@ -1,39 +1,76 @@
-import type { AccountCode, SessionUser } from '@pep/shared';
+﻿import type { AccountCode, SessionUser } from '@pep/shared';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const TOKEN_KEY = 'bild_token';
+const FETCH_TIMEOUT_MS = 20000;
 
 type ApiOptions = RequestInit & { json?: unknown };
 
+function getToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
 async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { json, headers, ...rest } = options;
-  const res = await fetch(`${API_URL}${path}`, {
-    ...rest,
-    credentials: 'include',
-    headers: {
-      ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...headers,
-    },
-    body: json !== undefined ? JSON.stringify(json) : rest.body,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const token = getToken();
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...rest,
+      signal: controller.signal,
+      credentials: 'include',
+      headers: {
+        ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: json !== undefined ? JSON.stringify(json) : rest.body,
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+    }
+    return data as T;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('API nÃ£o respondeu a tempo. Verifique se a API estÃ¡ no ar.');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  return data as T;
 }
 
 export const api = {
   url: API_URL,
   health: () => request<{ ok: boolean }>('/health'),
-  login: (email: string, password: string) =>
-    request<{ ok: true; user: SessionUser; token: string }>('/auth/login', {
+  login: async (email: string, password: string) => {
+    const res = await request<{ ok: true; user: SessionUser; token: string }>('/auth/login', {
       method: 'POST',
       json: { email, password },
-    }),
+    });
+    setToken(res.token);
+    return res;
+  },
   register: (body: { companyName: string; name: string; email: string; password: string }) =>
     request<{ ok: true }>('/auth/register', { method: 'POST', json: body }),
-  logout: () => request<{ ok: true }>('/auth/logout', { method: 'POST' }),
+  logout: async () => {
+    try {
+      await request<{ ok: true }>('/auth/logout', { method: 'POST' });
+    } finally {
+      setToken(null);
+    }
+  },
   me: () => request<{ user: SessionUser }>('/auth/me'),
   accountsHub: () => request<{ ok: boolean; activeCode: AccountCode; accounts: HubAccount[] }>('/accounts/hub'),
   listAccounts: () => request<{ accounts: Array<{ id: string; code: AccountCode; name: string; cnpj: string | null }> }>('/accounts'),
