@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { useAppAuth } from '@/components/providers';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { refresh } = useAppAuth();
   const [email, setEmail] = useState('admin@bildfitness.local');
   const [password, setPassword] = useState('admin123');
@@ -24,10 +22,10 @@ export default function LoginPage() {
       await api.login(email, password);
       await refresh();
       toast.success('Login OK');
-      router.push('/contas/');
+      // Hard navigation is more reliable with static export on Hostinger.
+      window.location.href = '/contas/';
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Falha no login');
-    } finally {
       setLoading(false);
     }
   }
