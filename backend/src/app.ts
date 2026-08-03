@@ -32,44 +32,63 @@ export function createApp() {
 
   app.get('/health/db', async (_req, res) => {
     const started = Date.now();
-    try {
-      const mariadb = await import('mariadb');
+    const mariadb = await import('mariadb');
+    const attempts: Array<Record<string, unknown>> = [];
+
+    const bases = [
+      { label: 'tcp-127.0.0.1', host: '127.0.0.1', port: env.DB_PORT },
+      { label: `tcp-${env.DB_HOST}`, host: env.DB_HOST, port: env.DB_PORT },
+      { label: 'socket-mysqld', socketPath: '/var/run/mysqld/mysqld.sock' },
+      { label: 'socket-tmp', socketPath: '/tmp/mysql.sock' },
+    ];
+
+    for (const attempt of bases) {
+      const t0 = Date.now();
       const pool = mariadb.createPool({
-        host: env.DB_HOST,
-        port: env.DB_PORT,
         user: env.DB_USER,
         password: env.DB_PASS,
         database: env.DB_NAME,
         connectionLimit: 1,
-        connectTimeout: 3000,
+        connectTimeout: 2500,
+        ...attempt,
       });
       try {
         const conn = await pool.getConnection();
         const rows = await conn.query('SELECT 1 AS ok');
         conn.release();
+        await pool.end().catch(() => undefined);
         res.json({
           ok: true,
           db: true,
+          via: attempt.label,
           ms: Date.now() - started,
           host: env.DB_HOST,
           name: env.DB_NAME,
           user: env.DB_USER,
           rows,
+          attempts,
         });
-      } finally {
+        return;
+      } catch (e) {
+        attempts.push({
+          via: attempt.label,
+          ms: Date.now() - t0,
+          error: e instanceof Error ? e.message : String(e),
+        });
         await pool.end().catch(() => undefined);
       }
-    } catch (e) {
-      res.status(500).json({
-        ok: false,
-        db: false,
-        ms: Date.now() - started,
-        host: env.DB_HOST,
-        name: env.DB_NAME,
-        user: env.DB_USER,
-        error: e instanceof Error ? e.message : String(e),
-      });
     }
+
+    res.status(500).json({
+      ok: false,
+      db: false,
+      ms: Date.now() - started,
+      host: env.DB_HOST,
+      name: env.DB_NAME,
+      user: env.DB_USER,
+      hint: 'No hPanel → Bancos de dados, copie o hostname real. Se for remoto, ative Remote MySQL (%). Defina DB_HOST=127.0.0.1 ou o host mostrado no painel.',
+      attempts,
+    });
   });
 
   app.use('/auth', authRouter);
