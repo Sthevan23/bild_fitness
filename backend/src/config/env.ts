@@ -12,7 +12,9 @@ for (const p of [resolve(root, '.env'), resolve(root, '../.env'), resolve(proces
   }
 }
 
-const DB_HOST = process.env.DB_HOST || 'localhost';
+const DB_HOST_RAW = process.env.DB_HOST || 'localhost';
+/** Node 18+ resolves localhost to ::1; Hostinger MySQL usually only listens on IPv4. */
+const DB_HOST = DB_HOST_RAW === 'localhost' ? '127.0.0.1' : DB_HOST_RAW;
 const DB_PORT = Number(process.env.DB_PORT || 3306);
 const DB_USER = process.env.DB_USER || process.env.DB_USERNAME || 'root';
 const DB_PASS = process.env.DB_PASS || process.env.DB_PASSWORD || '';

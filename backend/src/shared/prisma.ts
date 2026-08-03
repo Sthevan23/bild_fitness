@@ -12,8 +12,9 @@ function createPrisma() {
     password: env.DB_PASS,
     database: env.DB_NAME,
     connectionLimit: 2,
-    connectTimeout: 15000,
-    acquireTimeout: 15000,
+    connectTimeout: 10000,
+    acquireTimeout: 10000,
+    allowPublicKeyRetrieval: true,
   });
 
   return new PrismaClient({

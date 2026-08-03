@@ -28,7 +28,9 @@ authRouter.post('/login', async (req, res) => {
       ? e.message
       : e instanceof Error && /credentials|Authentication failed|Access denied/i.test(e.message)
         ? 'Falha de conexão com o banco. Verifique DB_USER/DB_PASS.'
-        : 'Falha no login';
+        : e instanceof Error && /timeout|ECONNREFUSED|ENOTFOUND|connect/i.test(e.message)
+          ? 'Não foi possível conectar ao MySQL. Use DB_HOST=127.0.0.1 e confira usuário/senha.'
+          : 'Falha no login';
     res.status(status).json({ error: message });
   }
 });
