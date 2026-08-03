@@ -9,11 +9,6 @@ import { ordersRouter } from './modules/orders/presentation/orders.routes.js';
 import { productsRouter } from './modules/products/presentation/products.routes.js';
 import { dashboardRouter } from './modules/dashboard/presentation/dashboard.routes.js';
 import { financeRouter } from './modules/finance/presentation/finance.routes.js';
-import {
-  marketplaceRouter,
-  mercadolivreCallbackHandler,
-} from './modules/marketplace/presentation/marketplace.routes.js';
-import { nfeRouter } from './modules/nfe/presentation/nfe.routes.js';
 import { spreadsheetImportRouter } from './modules/spreadsheet-import/presentation/spreadsheet-import.routes.js';
 import { salesRouter } from './modules/sales/presentation/sales.routes.js';
 import { purchasingRouter } from './modules/purchasing/presentation/purchasing.routes.js';
@@ -41,13 +36,9 @@ export function createApp() {
   app.use('/products', productsRouter);
   app.use('/dashboard', dashboardRouter);
   app.use('/finance', financeRouter);
-  app.use('/marketplace', marketplaceRouter);
-  app.use('/nfe', nfeRouter);
   app.use('/imports', spreadsheetImportRouter);
   app.use('/sales', salesRouter);
   app.use('/purchasing', purchasingRouter);
-
-  app.get('/marketplace/mercadolivre/callback', mercadolivreCallbackHandler);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = isAppError(err) ? err.statusCode : 500;

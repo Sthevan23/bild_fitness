@@ -1,26 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { api } from '@/lib/api-client';
+import { api, type ImportControleVendasResult } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-type ImportResult = {
-  ok: true;
-  importId: string;
-  productsUpserted: number;
-  kitsUpserted: number;
-  taxRatesUpserted: number;
-  salesImported: number;
-  salesSkipped: number;
-  stockUpdated: number;
-  deliveriesImported: number;
-};
-
 export default function ImportarPlanilhaPage() {
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<ImportControleVendasResult | null>(null);
 
   async function onFile(file: File | null) {
     if (!file) return;
@@ -50,7 +38,7 @@ export default function ImportarPlanilhaPage() {
       <div>
         <h1 className="text-2xl font-semibold">Importar planilha</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Controle de Vendas V2 · só Mercado Livre · contas P&amp;P / RC / PCP · histórico incluído
+          Controle de Vendas V2 · contas P&amp;P / RC / PCP · histórico incluído
         </p>
       </div>
 

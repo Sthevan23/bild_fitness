@@ -264,7 +264,7 @@ export default function VendasPage() {
               {!loading && !data?.rows.length && (
                 <tr>
                   <td colSpan={10} className="p-8 text-center text-[var(--muted-foreground)]">
-                    Nenhuma venda no período. Importe a planilha ou sincronize o Mercado Livre.
+                    Nenhuma venda no período. Importe a planilha Controle de Vendas.
                   </td>
                 </tr>
               )}

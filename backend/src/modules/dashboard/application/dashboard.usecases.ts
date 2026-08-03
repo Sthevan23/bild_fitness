@@ -17,7 +17,7 @@ export class GetDashboardUseCase {
     const last30 = subDays(now, 29);
     const orderScope = { companyId, accountId };
 
-    const [ordersToday, ordersMonth, accountStocks, pending, shipped, cancelled, recent, movements, mlConn] =
+    const [ordersToday, ordersMonth, accountStocks, pending, shipped, cancelled, recent, movements] =
       await Promise.all([
         prisma.order.findMany({
           where: { ...orderScope, orderedAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELADO' } },
@@ -40,10 +40,6 @@ export class GetDashboardUseCase {
         prisma.order.findMany({
           where: { ...orderScope, orderedAt: { gte: last30 }, status: { not: 'CANCELADO' } },
           include: { items: { include: { product: true } } },
-        }),
-        prisma.marketplaceConnection.findFirst({
-          where: { companyId, marketplace: 'MERCADO_LIVRE', accountId },
-          select: { status: true, lastSyncAt: true, lastSyncError: true, nickname: true },
         }),
       ]);
 
@@ -86,12 +82,6 @@ export class GetDashboardUseCase {
         productCount: accountStocks.length,
         ordersToday: ordersToday.length,
         lowStock: accountStocks.filter((r) => toNum(r.stock) > 0 && toNum(r.stock) <= toNum(r.minStock)).length,
-      },
-      marketplace: {
-        mlStatus: mlConn?.status ?? 'DISCONNECTED',
-        mlNickname: mlConn?.nickname ?? null,
-        lastSyncAt: mlConn?.lastSyncAt?.toISOString() ?? null,
-        lastSyncError: mlConn?.lastSyncError ?? null,
       },
       salesByDay: [...byDayMap.entries()].map(([date, total]) => ({ date, total })),
       topProducts: [...productSales.values()].sort((a, b) => b.qty - a.qty).slice(0, 6),

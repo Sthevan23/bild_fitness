@@ -13,3 +13,6 @@ packages/shared/dist
 .vercel
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+*.db
+*.db-journal
+backend/prisma/dev.db

@@ -4,9 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, type DashboardData } from '@/lib/api-client';
 import { useAppAuth } from '@/components/providers';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   Package,
@@ -75,17 +74,6 @@ export default function DashboardPage() {
               trocar conta
             </Link>
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-[var(--card)] px-3 py-2 shadow-[var(--shadow)]">
-          <span className="text-xs text-[var(--muted-foreground)]">Mercado Livre</span>
-          {data.marketplace.mlStatus === 'CONNECTED' ? (
-            <Badge variant="success">{data.marketplace.mlNickname || 'conectado'}</Badge>
-          ) : (
-            <Badge variant="destructive">desconectado</Badge>
-          )}
-          <span className="text-xs text-[var(--muted-foreground)]">
-            Sync: {data.marketplace.lastSyncAt ? formatDate(data.marketplace.lastSyncAt) : 'nunca'}
-          </span>
         </div>
       </div>
 

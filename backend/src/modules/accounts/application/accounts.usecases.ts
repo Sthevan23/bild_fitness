@@ -27,17 +27,6 @@ export class GetAccountsHubUseCase {
   async execute(companyId: string, activeCode?: string | null) {
     const accounts = await ensureSalesAccounts(companyId);
     const code = normalizeAccountCode(activeCode);
-    const connections = await prisma.marketplaceConnection.findMany({
-      where: { companyId, marketplace: 'MERCADO_LIVRE' },
-      select: {
-        accountId: true,
-        status: true,
-        nickname: true,
-        sellerId: true,
-        lastSyncAt: true,
-        lastSyncError: true,
-      },
-    });
 
     const taxRows = await prisma.accountTaxRate.findMany({
       where: { companyId, channel: 'ML' },
@@ -62,7 +51,6 @@ export class GetAccountsHubUseCase {
       ok: true as const,
       activeCode: code,
       accounts: accounts.map((a) => {
-        const conn = connections.find((c) => c.accountId === a.id);
         const stock = stockCounts.find((s) => s.accountId === a.id);
         const tax = taxRows.find((t) => t.accountId === a.id);
         return {
@@ -74,15 +62,6 @@ export class GetAccountsHubUseCase {
           isSelected: a.code === code,
           ratePercent: tax ? toNum(tax.ratePercent) : 0,
           targetMarginPercent: tax ? toNum(tax.targetMarginPercent) : 15,
-          ml: conn
-            ? {
-                status: conn.status,
-                nickname: conn.nickname,
-                sellerId: conn.sellerId,
-                lastSyncAt: conn.lastSyncAt,
-                lastSyncError: conn.lastSyncError,
-              }
-            : null,
           stock: stock ?? { skus: 0, low: 0, zerado: 0 },
         };
       }),

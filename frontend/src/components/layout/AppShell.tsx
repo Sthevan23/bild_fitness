@@ -10,7 +10,6 @@ import {
   ShoppingCart,
   Warehouse,
   Wallet,
-  Link2,
   LogOut,
   PackageCheck,
   BarChart3,
@@ -32,7 +31,6 @@ const links = [
   { href: '/financeiro/', label: 'Financeiro', icon: Wallet },
   { href: '/relatorios/', label: 'Relatórios', icon: BarChart3 },
   { href: '/importar/', label: 'Importar', icon: FileSpreadsheet },
-  { href: '/integracoes/', label: 'Integrações', icon: Link2 },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

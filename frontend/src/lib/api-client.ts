@@ -71,18 +71,6 @@ export const api = {
   financeList: () => request<{ entries: unknown[] }>('/finance'),
   createFinance: (body: Record<string, unknown>) =>
     request<{ ok: true }>('/finance', { method: 'POST', json: body }),
-  mlStatus: () => request<MlStatus>('/marketplace/mercadolivre/status'),
-  mlConnect: (accountCode?: AccountCode) =>
-    request<{ url: string }>('/marketplace/mercadolivre/connect', {
-      method: 'POST',
-      json: { accountCode },
-    }),
-  mlDisconnect: (accountCode?: AccountCode) =>
-    request<{ ok: true }>('/marketplace/mercadolivre/disconnect', {
-      method: 'POST',
-      json: { accountCode },
-    }),
-  mlSync: () => request<{ ok: true; result: unknown }>('/marketplace/mercadolivre/sync', { method: 'POST' }),
   importControleVendas: (fileBase64: string, fileName: string) =>
     request<ImportControleVendasResult>('/imports/controle-vendas', {
       method: 'POST',
@@ -244,25 +232,12 @@ export type HubAccount = {
   isSelected: boolean;
   ratePercent?: number;
   targetMarginPercent?: number;
-  ml: {
-    status: string;
-    nickname: string | null;
-    sellerId: string | null;
-    lastSyncAt: string | null;
-    lastSyncError: string | null;
-  } | null;
   stock: { skus: number; low: number; zerado: number };
 };
 
 export type DashboardData = {
   account: { code: string; name: string; cnpj: string | null };
   cards: Record<string, number>;
-  marketplace: {
-    mlStatus: string;
-    mlNickname: string | null;
-    lastSyncAt: string | null;
-    lastSyncError: string | null;
-  };
   salesByDay: Array<{ date: string; total: number }>;
   topProducts: Array<{ name: string; qty: number }>;
   stockChart: Array<{ name: string; value: number }>;
@@ -276,16 +251,4 @@ export type FinanceSummary = {
   lucro: number;
   aPagar: number;
   aReceber: number;
-};
-
-export type MlStatus = {
-  configured: boolean;
-  account: { code: AccountCode; name: string; cnpj: string | null };
-  connection: {
-    status: string;
-    nickname: string | null;
-    sellerId: string | null;
-    lastSyncAt: string | null;
-    lastSyncError: string | null;
-  } | null;
 };

@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDate } from '@/lib/utils';
-import { Building2, LogIn, PlugZap, RefreshCw, Unplug } from 'lucide-react';
+import { Building2, LogIn } from 'lucide-react';
 import type { AccountCode } from '@pep/shared';
 import { toast } from 'sonner';
 
@@ -19,7 +18,6 @@ const FALLBACK: HubAccount[] = (['P&P', 'RC', 'PCP'] as AccountCode[]).map((code
   cnpj: null,
   active: true,
   isSelected: i === 0,
-  ml: null,
   stock: { skus: 0, low: 0, zerado: 0 },
 }));
 
@@ -73,16 +71,6 @@ export default function ContasPage() {
     }
   }
 
-  async function onConnectMl(code: AccountCode) {
-    await setAccount(code);
-    try {
-      const res = await api.mlConnect(code);
-      window.location.href = res.url;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ML');
-    }
-  }
-
   return (
     <div className="space-y-7">
       <div>
@@ -119,9 +107,6 @@ export default function ContasPage() {
                 </div>
                 {account.code === activeCode && <Badge variant="success">Ativa</Badge>}
               </div>
-              <Badge variant={account.ml?.status === 'CONNECTED' ? 'success' : 'secondary'}>
-                {account.ml?.status === 'CONNECTED' ? 'ML conectado' : 'ML não conectado'}
-              </Badge>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="rounded-xl bg-[var(--muted)]/70 px-3.5 py-3">
@@ -148,12 +133,6 @@ export default function ContasPage() {
                   </p>
                 </div>
               </div>
-              {account.ml?.nickname && (
-                <p className="text-xs text-[var(--muted-foreground)]">
-                  ML: <b>{account.ml.nickname}</b>
-                  {account.ml.lastSyncAt ? ` · ${formatDate(account.ml.lastSyncAt)}` : ''}
-                </p>
-              )}
               <Button
                 className="w-full"
                 disabled={pending || account.code === activeCode}
@@ -173,37 +152,6 @@ export default function ContasPage() {
               >
                 Configurar CNPJ
               </Button>
-              {account.ml?.status === 'CONNECTED' ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={async () => {
-                      await setAccount(account.code);
-                      await api.mlSync();
-                      toast.success('Sync solicitado');
-                      load();
-                    }}
-                  >
-                    <RefreshCw className="size-3.5" /> Sync
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={async () => {
-                      await api.mlDisconnect(account.code);
-                      toast.success('Desconectado');
-                      load();
-                    }}
-                  >
-                    <Unplug className="size-3.5" /> Off
-                  </Button>
-                </div>
-              ) : (
-                <Button size="sm" variant="outline" className="w-full" onClick={() => onConnectMl(account.code)}>
-                  <PlugZap className="size-3.5" /> Conectar Mercado Livre
-                </Button>
-              )}
             </CardContent>
           </Card>
         ))}

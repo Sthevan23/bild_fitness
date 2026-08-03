@@ -21,8 +21,6 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "fast-xml-parser": "^5.0.9",
-    "fuse.js": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"
