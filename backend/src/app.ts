@@ -31,14 +31,39 @@ export function createApp() {
   });
 
   app.get('/health/db', async (_req, res) => {
+    const started = Date.now();
     try {
-      const { prisma } = await import('./shared/prisma.js');
-      const rows = await prisma.$queryRaw`SELECT 1 AS ok`;
-      res.json({ ok: true, db: true, rows, host: env.DB_HOST, name: env.DB_NAME, user: env.DB_USER });
+      const mariadb = await import('mariadb');
+      const pool = mariadb.createPool({
+        host: env.DB_HOST,
+        port: env.DB_PORT,
+        user: env.DB_USER,
+        password: env.DB_PASS,
+        database: env.DB_NAME,
+        connectionLimit: 1,
+        connectTimeout: 3000,
+      });
+      try {
+        const conn = await pool.getConnection();
+        const rows = await conn.query('SELECT 1 AS ok');
+        conn.release();
+        res.json({
+          ok: true,
+          db: true,
+          ms: Date.now() - started,
+          host: env.DB_HOST,
+          name: env.DB_NAME,
+          user: env.DB_USER,
+          rows,
+        });
+      } finally {
+        await pool.end().catch(() => undefined);
+      }
     } catch (e) {
       res.status(500).json({
         ok: false,
         db: false,
+        ms: Date.now() - started,
         host: env.DB_HOST,
         name: env.DB_NAME,
         user: env.DB_USER,
