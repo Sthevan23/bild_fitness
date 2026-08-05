@@ -40,6 +40,13 @@ authRouter.post('/login', async (req, res) => {
 
 authRouter.post('/register', async (req, res) => {
   try {
+    const { env } = await import('../../../config/env.js');
+    if (!env.allowRegister) {
+      res.status(403).json({
+        error: 'Cadastro público desativado. Use o login do administrador.',
+      });
+      return;
+    }
     const result = await register.execute(req.body);
     res.json(result);
   } catch (e) {

@@ -10,36 +10,33 @@ const importMl = new ImportMlVendasUseCase();
 
 spreadsheetImportRouter.use(authMiddleware);
 
+function readBase64File(req: AuthedRequest) {
+  const { fileBase64, fileName } = req.body || {};
+  if (!fileBase64 || typeof fileBase64 !== 'string') {
+    return null;
+  }
+  const b64 = String(fileBase64).replace(/^data:.*;base64,/, '');
+  return {
+    buffer: Buffer.from(b64, 'base64'),
+    fileName: typeof fileName === 'string' && fileName ? fileName : 'upload.xlsx',
+  };
+}
+
 /** Export diário Mercado Livre — aba “Vendas BR”. Estoque na conta ativa. */
 spreadsheetImportRouter.post('/mercadolivre-vendas', async (req: AuthedRequest, res) => {
   try {
-    const { fileBase64, fileName, filePath } = req.body || {};
-    const activeCode = req.cookies?.bild_active_account;
-
-    let result;
-    if (filePath && typeof filePath === 'string') {
-      result = await importMl.executeFromPath(
-        req.user!.companyId,
-        filePath,
-        activeCode,
-        fileName,
-        req.user!.id,
-      );
-    } else if (fileBase64 && typeof fileBase64 === 'string') {
-      const b64 = String(fileBase64).replace(/^data:.*;base64,/, '');
-      const buffer = Buffer.from(b64, 'base64');
-      result = await importMl.executeFromBuffer(
-        req.user!.companyId,
-        buffer,
-        fileName || 'vendas-br-ml.xlsx',
-        activeCode,
-        req.user!.id,
-      );
-    } else {
-      res.status(400).json({ error: 'Envie fileBase64 ou filePath' });
+    const file = readBase64File(req);
+    if (!file) {
+      res.status(400).json({ error: 'Envie fileBase64 (arquivo Excel)' });
       return;
     }
-
+    const result = await importMl.executeFromBuffer(
+      req.user!.companyId,
+      file.buffer,
+      file.fileName,
+      req.cookies?.bild_active_account,
+      req.user!.id,
+    );
     res.json(result);
   } catch (e) {
     const status = isAppError(e) ? e.statusCode : 500;
@@ -50,24 +47,16 @@ spreadsheetImportRouter.post('/mercadolivre-vendas', async (req: AuthedRequest, 
 /** Importa planilha Controle de Vendas (legado / compatibilidade). */
 spreadsheetImportRouter.post('/controle-vendas', async (req: AuthedRequest, res) => {
   try {
-    const { fileBase64, fileName, filePath } = req.body || {};
-
-    let result;
-    if (filePath && typeof filePath === 'string') {
-      result = await importControle.executeFromPath(req.user!.companyId, filePath, fileName);
-    } else if (fileBase64 && typeof fileBase64 === 'string') {
-      const b64 = String(fileBase64).replace(/^data:.*;base64,/, '');
-      const buffer = Buffer.from(b64, 'base64');
-      result = await importControle.executeFromBuffer(
-        req.user!.companyId,
-        buffer,
-        fileName || 'controle-vendas.xlsx',
-      );
-    } else {
-      res.status(400).json({ error: 'Envie fileBase64 ou filePath' });
+    const file = readBase64File(req);
+    if (!file) {
+      res.status(400).json({ error: 'Envie fileBase64 (arquivo Excel)' });
       return;
     }
-
+    const result = await importControle.executeFromBuffer(
+      req.user!.companyId,
+      file.buffer,
+      file.fileName,
+    );
     res.json(result);
   } catch (e) {
     const status = isAppError(e) ? e.statusCode : 500;

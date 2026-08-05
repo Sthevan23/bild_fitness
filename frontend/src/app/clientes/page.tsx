@@ -8,6 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const PAGE_SIZE = 50;
+
 function formatDoc(doc: string | null) {
   if (!doc) return '—';
   const d = doc.replace(/\D/g, '');
@@ -20,31 +22,44 @@ export default function ClientesPage() {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [search, setSearch] = useState('');
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [openId, setOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function load(q?: string) {
+  function load(q?: string, pageNum = page) {
     setLoading(true);
     api
-      .customers({ ...(q ? { search: q } : {}), pageSize: '100' })
+      .customers({
+        ...(q ? { search: q } : {}),
+        page: String(pageNum),
+        pageSize: String(PAGE_SIZE),
+      })
       .then((r) => {
         setCustomers(r.customers);
         setTotal(r.total);
+        setPage(r.page);
+        setPageSize(r.pageSize);
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Erro'))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    load(search, page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold">Clientes</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          {total} cadastro{total === 1 ? '' : 's'} · telefone, CPF e última compra
+          {total} cadastro{total === 1 ? '' : 's'} · mostrando {from}–{to} · telefone, CPF e última compra
         </p>
       </div>
 
@@ -53,9 +68,21 @@ export default function ClientesPage() {
           placeholder="Buscar nome, CPF ou telefone…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && load(search)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setPage(1);
+              load(search, 1);
+            }
+          }}
         />
-        <Button variant="secondary" onClick={() => load(search)} disabled={loading}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setPage(1);
+            load(search, 1);
+          }}
+          disabled={loading}
+        >
           Buscar
         </Button>
       </div>
@@ -125,6 +152,30 @@ export default function ClientesPage() {
           </table>
         </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Anterior
+          </Button>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Página {page} de {totalPages}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Próxima
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

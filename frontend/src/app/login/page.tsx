@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { useAppAuth } from '@/components/providers';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,8 @@ import { toast } from 'sonner';
 
 export default function LoginPage() {
   const { refresh } = useAppAuth();
-  const [email, setEmail] = useState('admin@bildfitness.local');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -22,7 +21,6 @@ export default function LoginPage() {
       await api.login(email, password);
       await refresh();
       toast.success('Login OK');
-      // Hard navigation is more reliable with static export on Hostinger.
       window.location.href = '/contas/';
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Falha no login');
@@ -35,26 +33,33 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Bild Fitness</CardTitle>
-          <CardDescription>ERP · front estático + API Hostinger</CardDescription>
+          <CardDescription>Acesso ao sistema de vendas e estoque</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-3" onSubmit={onSubmit}>
             <div>
               <label className="mb-1 block text-sm">E-mail</label>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                autoComplete="username"
+                required
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm">Senha</label>
-              <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+              <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+                required
+              />
             </div>
             <Button className="w-full" disabled={loading} type="submit">
               {loading ? 'Entrando…' : 'Entrar'}
             </Button>
-            <p className="text-center text-sm text-[var(--muted-foreground)]">
-              <Link href="/register/" className="text-[var(--primary)] underline-offset-2 hover:underline">
-                Criar conta
-              </Link>
-            </p>
           </form>
         </CardContent>
       </Card>

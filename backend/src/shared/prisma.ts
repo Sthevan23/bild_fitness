@@ -48,7 +48,6 @@ async function ensureAdmin(client: PrismaClient) {
   const existing = await client.user.findUnique({ where: { email } });
 
   if (existing) {
-    // Só garante contas — sem rehash nem catálogo a cada boot (pesado).
     for (const code of ['P&P', 'RC', 'PCP'] as const) {
       await client.salesAccount.upsert({
         where: { companyId_code: { companyId: existing.companyId, code } },
@@ -61,6 +60,13 @@ async function ensureAdmin(client: PrismaClient) {
         where: { id: existing.id },
         data: { active: true, role: 'ADMIN' },
       });
+    }
+    // Catálogo: só preenche se ainda estiver vazio (Hostinger já existente)
+    const productCount = await client.product.count({ where: { companyId: existing.companyId } });
+    if (productCount < 20) {
+      const { upsertCatalogProducts } = await import('../modules/products/application/catalog.js');
+      const n = await upsertCatalogProducts(client, existing.companyId);
+      console.log(`[db] catálogo upserted (${n} produtos)`);
     }
     return;
   }

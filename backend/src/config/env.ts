@@ -29,15 +29,30 @@ const envSchema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3001),
   DATABASE_URL: z.string().min(1),
-  JWT_SECRET: z.string().min(8).default('dev-jwt-secret-change-me'),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  JWT_SECRET: z.string().min(16),
+  CORS_ORIGIN: z.string().min(1),
   COOKIE_SECURE: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v === 'true'),
+  ALLOW_REGISTER: z
     .string()
     .optional()
     .transform((v) => v === '1' || v === 'true'),
 });
 
 process.env.DATABASE_URL = buildDatabaseUrl();
+
+const isProd = (process.env.NODE_ENV || 'development') === 'production';
+if (isProd && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-jwt-secret-change-me')) {
+  throw new Error('JWT_SECRET obrigatório em produção (defina no hPanel).');
+}
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'dev-jwt-secret-change-me-local';
+}
+if (!process.env.CORS_ORIGIN) {
+  process.env.CORS_ORIGIN = 'http://localhost:3000';
+}
 
 const parsed = envSchema.safeParse({
   ...process.env,
@@ -57,4 +72,6 @@ export const env = {
   DB_PASS,
   DB_NAME,
   cookieSecure: parsed.data.COOKIE_SECURE ?? parsed.data.NODE_ENV === 'production',
+  /** Só libera POST /auth/register se ALLOW_REGISTER=true no hPanel */
+  allowRegister: parsed.data.ALLOW_REGISTER === true,
 };

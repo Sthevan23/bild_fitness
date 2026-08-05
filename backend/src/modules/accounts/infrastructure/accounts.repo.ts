@@ -46,7 +46,7 @@ export async function ensureSalesAccounts(companyId: string) {
       accounts.map((account) => ({
         accountId: account.id,
         productId: product.id,
-        stock: product.stock,
+        stock: 0,
         minStock: product.minStock,
       })),
     ),

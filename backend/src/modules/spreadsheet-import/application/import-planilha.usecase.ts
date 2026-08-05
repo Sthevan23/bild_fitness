@@ -347,10 +347,35 @@ export class ImportControleVendasUseCase {
         await syncProductTotalStock(productId);
       }
 
-      // Deliveries
+      // Deliveries (idempotente: não recria nem reaplica estoque se já existir no dia)
       for (const del of parsed.deliveries) {
         const account = accountByCode.get(del.accountCode);
         if (!account || !del.lines.length) continue;
+
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const fingerprint = del.lines
+          .map((l) => `${normalizeDesc(l.description)}:${l.quantity}`)
+          .sort()
+          .join('|');
+        const existingDeliveries = await prisma.purchaseDelivery.findMany({
+          where: {
+            companyId,
+            accountId: account.id,
+            supplierName: del.supplierName || null,
+            createdAt: { gte: dayStart },
+          },
+          include: { lines: true },
+        });
+        const already = existingDeliveries.some((d) => {
+          const fp = d.lines
+            .map((l) => `${normalizeDesc(l.description)}:${Number(l.quantity)}`)
+            .sort()
+            .join('|');
+          return fp === fingerprint;
+        });
+        if (already) continue;
+
         const created = await prisma.purchaseDelivery.create({
           data: {
             companyId,

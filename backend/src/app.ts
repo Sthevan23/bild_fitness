@@ -65,8 +65,6 @@ export function createApp() {
           ms: Date.now() - started,
           host: env.DB_HOST,
           name: env.DB_NAME,
-          user: env.DB_USER,
-          rows,
           attempts,
         });
         return;

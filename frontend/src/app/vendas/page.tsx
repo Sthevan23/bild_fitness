@@ -81,6 +81,32 @@ export default function VendasPage() {
     }
   }
 
+  async function saveAndRecalculate() {
+    const rate = Number(ratePercent.replace(',', '.'));
+    const target = Number(targetMargin.replace(',', '.'));
+    if (Number.isNaN(rate) || Number.isNaN(target)) {
+      toast.error('Informe valores numéricos válidos');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.updateMarginSettings({
+        ratePercent: rate,
+        targetMarginPercent: target,
+        recalculate: true,
+      });
+      toast.success(
+        `Margem salva · ${res.recalculated} itens recalculados (últimos 90 dias)`,
+      );
+      setShowSettings(false);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const totals = data?.totals;
   const target = data?.settings?.targetMarginPercent ?? 15;
 
@@ -146,11 +172,14 @@ export default function VendasPage() {
                 Vendas abaixo disso aparecem em amarelo/vermelho
               </span>
             </label>
-            <div className="flex gap-2 sm:col-span-2">
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
               <Button onClick={saveSettings} disabled={saving}>
-                {saving ? 'Salvando…' : 'Salvar e recalcular vendas'}
+                {saving ? 'Salvando…' : 'Salvar margem'}
               </Button>
-              <Button variant="secondary" onClick={() => setShowSettings(false)}>
+              <Button variant="secondary" onClick={saveAndRecalculate} disabled={saving}>
+                Salvar e recalcular (90d)
+              </Button>
+              <Button variant="outline" onClick={() => setShowSettings(false)}>
                 Fechar
               </Button>
             </div>
@@ -265,7 +294,7 @@ export default function VendasPage() {
               {!loading && !data?.rows.length && (
                 <tr>
                   <td colSpan={10} className="p-8 text-center text-[var(--muted-foreground)]">
-                    Nenhuma venda no período. Importe a planilha Controle de Vendas.
+                    Nenhuma venda no período. Importe o export diário Mercado Livre (Vendas BR).
                   </td>
                 </tr>
               )}
