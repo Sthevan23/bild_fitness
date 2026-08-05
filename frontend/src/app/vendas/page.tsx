@@ -17,6 +17,8 @@ const PERIODS = [
   { id: '7', label: '7d' },
   { id: '30', label: '30d' },
   { id: '90', label: '90d' },
+  { id: '365', label: '1 ano' },
+  { id: '730', label: '2 anos' },
   { id: 'all', label: 'Tudo' },
 ];
 
@@ -29,7 +31,7 @@ function marginTone(m: number, target: number) {
 export default function VendasPage() {
   const { code } = useAppAuth();
   const [data, setData] = useState<SalesResponse | null>(null);
-  const [period, setPeriod] = useState('30');
+  const [period, setPeriod] = useState('730');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -67,11 +69,9 @@ export default function VendasPage() {
       const res = await api.updateMarginSettings({
         ratePercent: rate,
         targetMarginPercent: target,
-        recalculate: true,
+        recalculate: false,
       });
-      toast.success(
-        `Margem salva · ${res.recalculated} vendas recalculadas (alíquota ${rate}% · meta ${target}%)`,
-      );
+      toast.success(`Margem salva (alíquota ${rate}% · meta ${target}%)`);
       setShowSettings(false);
       load();
     } catch (e) {
@@ -93,7 +93,8 @@ export default function VendasPage() {
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Vendas · {code}</h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Lucro e margem por venda ·{' '}
+            Lucro e margem por venda · histórico até 2 anos no banco · lista limitada na tela
+            {data?.truncated ? ` (mostrando últimas ${data.rows.length})` : ''} ·{' '}
             <Link href="/importar/" className="font-medium text-[var(--primary)] hover:underline">
               importar planilha
             </Link>

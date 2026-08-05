@@ -14,12 +14,13 @@ ordersRouter.get('/', async (req: AuthedRequest, res) => {
   try {
     const active = req.cookies?.bild_active_account;
     const orders = await list.execute(req.user!.companyId, active, {
-      period: String(req.query.period || '30'),
+      period: String(req.query.period || '730'),
       platform: (req.query.platform as Platform | 'ALL') || 'ALL',
       status: (req.query.status as OrderStatus | 'ALL') || 'ALL',
       search: req.query.search ? String(req.query.search) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
     });
-    res.json({ orders });
+    res.json({ orders, limit: orders.length });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Erro' });
   }

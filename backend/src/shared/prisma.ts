@@ -19,7 +19,7 @@ function candidateConfigs(): DbTry[] {
     user: env.DB_USER,
     password: env.DB_PASS,
     database: env.DB_NAME,
-    connectionLimit: 2,
+    connectionLimit: 8,
     connectTimeout: 4000,
   };
 
@@ -46,16 +46,26 @@ async function probe(config: mariadb.PoolConfig) {
 async function ensureAdmin(client: PrismaClient) {
   const email = 'admin@bildfitness.local';
   const existing = await client.user.findUnique({ where: { email } });
+
   if (existing) {
-    // Keep account usable after Hostinger seed/hash mismatches.
-    const password = await bcrypt.hash('admin123', 10);
-    await client.user.update({
-      where: { id: existing.id },
-      data: { password, active: true, role: 'ADMIN' },
-    });
+    // Só garante contas — sem rehash nem catálogo a cada boot (pesado).
+    for (const code of ['P&P', 'RC', 'PCP'] as const) {
+      await client.salesAccount.upsert({
+        where: { companyId_code: { companyId: existing.companyId, code } },
+        create: { companyId: existing.companyId, code, name: code, active: true },
+        update: { active: true, name: code },
+      });
+    }
+    if (!existing.active || existing.role !== 'ADMIN') {
+      await client.user.update({
+        where: { id: existing.id },
+        data: { active: true, role: 'ADMIN' },
+      });
+    }
     return;
   }
 
+  const { upsertCatalogProducts } = await import('../modules/products/application/catalog.js');
   const password = await bcrypt.hash('admin123', 10);
   const company = await client.company.create({
     data: {
@@ -80,6 +90,7 @@ async function ensureAdmin(client: PrismaClient) {
       update: { active: true, name: code },
     });
   }
+  await upsertCatalogProducts(client, company.id);
   console.log('[db] admin bootstrap OK — admin@bildfitness.local / admin123');
 }
 

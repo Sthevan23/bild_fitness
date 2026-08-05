@@ -23,7 +23,7 @@ export default function ExpedicaoPage() {
 
   function load() {
     api
-      .orders({ period: '30', status: 'ALL' })
+      .orders({ period: '90', status: 'ALL', limit: '200' })
       .then((r) =>
         setOrders(
           (r.orders as Order[]).filter((o) => o.status === 'AGUARDANDO' || o.status === 'SEPARANDO'),

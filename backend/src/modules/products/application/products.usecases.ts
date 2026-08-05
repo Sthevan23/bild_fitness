@@ -2,6 +2,7 @@ import { normalizeAccountCode } from '@pep/shared';
 import { prisma } from '../../../shared/prisma.js';
 import { AppError } from '../../../shared/errors.js';
 import {
+  ensureSalesAccountRows,
   ensureSalesAccounts,
   resolveActiveAccount,
   syncProductTotalStock,
@@ -13,7 +14,7 @@ function toNum(v: unknown) {
 
 export class ListProductsUseCase {
   async execute(companyId: string, activeCode?: string, search?: string) {
-    await ensureSalesAccounts(companyId);
+    await ensureSalesAccountRows(companyId);
     const account = await resolveActiveAccount(companyId, activeCode);
     const products = await prisma.product.findMany({
       where: {
@@ -33,6 +34,7 @@ export class ListProductsUseCase {
         accountStocks: { include: { account: { select: { code: true } } } },
       },
       orderBy: { name: 'asc' },
+      take: 500,
     });
     return products.map((p) => {
       const row = p.accountStocks.find((s) => s.account.code === account.code);
@@ -49,7 +51,7 @@ export class ListProductsUseCase {
 /** Visão ESTOQUE da planilha: saldo por produto em PCP / RC / P&P / total */
 export class StockOverviewUseCase {
   async execute(companyId: string, search?: string) {
-    await ensureSalesAccounts(companyId);
+    await ensureSalesAccountRows(companyId);
     const products = await prisma.product.findMany({
       where: {
         companyId,
@@ -60,6 +62,7 @@ export class StockOverviewUseCase {
       },
       include: { accountStocks: { include: { account: { select: { code: true } } } } },
       orderBy: { name: 'asc' },
+      take: 500,
     });
 
     return products
@@ -192,5 +195,87 @@ export class DeleteProductUseCase {
     } catch {
       throw new AppError('Não foi possível excluir o produto');
     }
+  }
+}
+
+export class TransferStockUseCase {
+  async execute(
+    companyId: string,
+    userId: string,
+    productId: string,
+    body: { fromAccount: string; toAccount: string; quantity: number; note?: string },
+  ) {
+    const quantity = Number(body.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new AppError('Quantidade inválida');
+    const fromCode = normalizeAccountCode(body.fromAccount);
+    const toCode = normalizeAccountCode(body.toAccount);
+    if (fromCode === toCode) throw new AppError('Origem e destino devem ser contas diferentes');
+
+    const product = await prisma.product.findFirst({ where: { id: productId, companyId } });
+    if (!product) throw new AppError('Produto não encontrado', 404);
+
+    const accounts = await ensureSalesAccounts(companyId);
+    const from = accounts.find((a) => a.code === fromCode);
+    const to = accounts.find((a) => a.code === toCode);
+    if (!from || !to) throw new AppError('Conta inválida');
+
+    const fromStock = await prisma.accountStock.upsert({
+      where: { accountId_productId: { accountId: from.id, productId } },
+      create: { accountId: from.id, productId, stock: 0, minStock: product.minStock },
+      update: {},
+    });
+    if (toNum(fromStock.stock) < quantity) {
+      throw new AppError(`Estoque insuficiente na conta ${fromCode}`);
+    }
+
+    await prisma.accountStock.upsert({
+      where: { accountId_productId: { accountId: to.id, productId } },
+      create: { accountId: to.id, productId, stock: 0, minStock: product.minStock },
+      update: {},
+    });
+
+    const note =
+      body.note?.trim() ||
+      `Transferência ${fromCode} → ${toCode}`;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.accountStock.update({
+        where: { accountId_productId: { accountId: from.id, productId } },
+        data: { stock: { decrement: quantity } },
+      });
+      await tx.accountStock.update({
+        where: { accountId_productId: { accountId: to.id, productId } },
+        data: { stock: { increment: quantity } },
+      });
+      await tx.stockMovement.create({
+        data: {
+          companyId,
+          accountId: from.id,
+          productId,
+          type: 'SAIDA',
+          quantity,
+          unitCost: product.avgCost,
+          totalCost: quantity * toNum(product.avgCost),
+          userId,
+          note: `${note} (saída)`,
+        },
+      });
+      await tx.stockMovement.create({
+        data: {
+          companyId,
+          accountId: to.id,
+          productId,
+          type: 'ENTRADA',
+          quantity,
+          unitCost: product.avgCost,
+          totalCost: quantity * toNum(product.avgCost),
+          userId,
+          note: `${note} (entrada)`,
+        },
+      });
+    });
+
+    await syncProductTotalStock(productId);
+    return { ok: true as const, from: fromCode, to: toCode, quantity };
   }
 }

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { upsertCatalogProducts } from '../src/modules/products/application/catalog.js';
 
 const prisma = new PrismaClient();
 
@@ -53,7 +54,8 @@ async function main() {
     });
   }
 
-  console.log('Seed OK — admin@bildfitness.local / admin123');
+  const catalogCount = await upsertCatalogProducts(prisma, company.id);
+  console.log(`Seed OK — admin@bildfitness.local / admin123 · catálogo ${catalogCount} produtos`);
 }
 
 main()

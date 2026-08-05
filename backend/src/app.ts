@@ -12,6 +12,7 @@ import { financeRouter } from './modules/finance/presentation/finance.routes.js'
 import { spreadsheetImportRouter } from './modules/spreadsheet-import/presentation/spreadsheet-import.routes.js';
 import { salesRouter } from './modules/sales/presentation/sales.routes.js';
 import { purchasingRouter } from './modules/purchasing/presentation/purchasing.routes.js';
+import { customersRouter } from './modules/customers/presentation/customers.routes.js';
 
 export function createApp() {
   const app = express();
@@ -100,6 +101,7 @@ export function createApp() {
   app.use('/imports', spreadsheetImportRouter);
   app.use('/sales', salesRouter);
   app.use('/purchasing', purchasingRouter);
+  app.use('/customers', customersRouter);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = isAppError(err) ? err.statusCode : 500;

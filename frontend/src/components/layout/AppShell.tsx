@@ -17,6 +17,7 @@ import {
   Receipt,
   Truck,
   ClipboardList,
+  Users,
 } from 'lucide-react';
 
 const links = [
@@ -24,6 +25,7 @@ const links = [
   { href: '/dashboard/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/vendas/', label: 'Vendas', icon: Receipt },
   { href: '/pedidos/', label: 'Pedidos', icon: ShoppingCart },
+  { href: '/clientes/', label: 'Clientes', icon: Users },
   { href: '/reposicao/', label: 'Reposição', icon: ClipboardList },
   { href: '/compras/', label: 'Compras', icon: Truck },
   { href: '/expedicao/', label: 'Expedição', icon: PackageCheck },

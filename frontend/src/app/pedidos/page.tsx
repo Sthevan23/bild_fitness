@@ -23,11 +23,11 @@ type Order = {
 export default function PedidosPage() {
   const { code } = useAppAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [period, setPeriod] = useState('30');
+  const [period, setPeriod] = useState('730');
 
   function load() {
     api
-      .orders({ period, status: 'ALL', platform: 'ALL' })
+      .orders({ period, status: 'ALL', platform: 'ALL', limit: '300' })
       .then((r) => setOrders(r.orders as Order[]))
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Erro'));
   }
@@ -52,13 +52,21 @@ export default function PedidosPage() {
       <div>
         <h1 className="text-2xl font-semibold">Pedidos · {code}</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Somente desta conta · <Link href="/contas/">trocar</Link>
+          Somente desta conta · até 300 pedidos na tela · <Link href="/contas/">trocar</Link>
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        {['hoje', '7', '15', '30'].map((p) => (
-          <Button key={p} size="sm" variant={period === p ? 'default' : 'outline'} onClick={() => setPeriod(p)}>
-            {p === 'hoje' ? 'Hoje' : `${p}d`}
+        {[
+          { id: 'hoje', label: 'Hoje' },
+          { id: '7', label: '7d' },
+          { id: '30', label: '30d' },
+          { id: '90', label: '90d' },
+          { id: '365', label: '1 ano' },
+          { id: '730', label: '2 anos' },
+          { id: 'all', label: 'Tudo' },
+        ].map((p) => (
+          <Button key={p.id} size="sm" variant={period === p.id ? 'default' : 'outline'} onClick={() => setPeriod(p.id)}>
+            {p.label}
           </Button>
         ))}
       </div>

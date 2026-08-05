@@ -8,7 +8,6 @@ import { prisma } from '../../../shared/prisma.js';
 import { AppError } from '../../../shared/errors.js';
 import {
   ensureSalesAccountRows,
-  ensureSalesAccounts,
   resolveActiveAccount,
 } from '../infrastructure/accounts.repo.js';
 import { calcSaleEconomics } from '../../spreadsheet-import/application/planilha-parser.js';
@@ -25,7 +24,7 @@ export class ListAccountsUseCase {
 
 export class GetAccountsHubUseCase {
   async execute(companyId: string, activeCode?: string | null) {
-    const accounts = await ensureSalesAccounts(companyId);
+    const accounts = await ensureSalesAccountRows(companyId);
     const code = normalizeAccountCode(activeCode);
 
     const taxRows = await prisma.accountTaxRate.findMany({
@@ -135,10 +134,17 @@ export class UpdateMarginSettingsUseCase {
     });
 
     let recalculated = 0;
-    if (data.recalculate !== false) {
+    // recalculate é opt-in: percorrer todo o histórico trava o servidor
+    if (data.recalculate === true) {
       const orders = await prisma.order.findMany({
-        where: { companyId, accountId: account.id },
+        where: {
+          companyId,
+          accountId: account.id,
+          orderedAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+        },
         include: { items: { include: { product: true } } },
+        take: 2000,
+        orderBy: { orderedAt: 'desc' },
       });
       for (const order of orders) {
         for (const item of order.items) {

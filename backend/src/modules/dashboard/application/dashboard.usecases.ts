@@ -17,79 +17,125 @@ export class GetDashboardUseCase {
     const last30 = subDays(now, 29);
     const orderScope = { companyId, accountId };
 
-    const [ordersToday, ordersMonth, accountStocks, pending, shipped, cancelled, recent, movements] =
-      await Promise.all([
-        prisma.order.findMany({
-          where: { ...orderScope, orderedAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELADO' } },
-          include: { items: true },
-        }),
-        prisma.order.findMany({
-          where: { ...orderScope, orderedAt: { gte: monthStart }, status: { not: 'CANCELADO' } },
-          include: { items: true },
-        }),
-        prisma.accountStock.findMany({ where: { accountId }, include: { product: true } }),
-        prisma.order.count({ where: { ...orderScope, status: 'AGUARDANDO' } }),
-        prisma.order.count({ where: { ...orderScope, status: 'ENVIADO' } }),
-        prisma.order.count({ where: { ...orderScope, status: 'CANCELADO' } }),
-        prisma.order.findMany({
-          where: orderScope,
-          orderBy: { orderedAt: 'desc' },
-          take: 8,
-          include: { customer: true, items: true },
-        }),
-        prisma.order.findMany({
-          where: { ...orderScope, orderedAt: { gte: last30 }, status: { not: 'CANCELADO' } },
-          include: { items: { include: { product: true } } },
-        }),
-      ]);
-
-    let lucro = 0;
-    for (const o of ordersMonth) {
-      for (const i of o.items) {
-        const row = accountStocks.find((x) => x.productId === i.productId);
-        const p = row?.product;
-        lucro += toNum(i.totalPrice) - toNum(i.quantity) * toNum(p?.avgCost || p?.costPrice);
-      }
-    }
+    const [
+      todayAgg,
+      monthAgg,
+      monthUnits,
+      monthProfit,
+      accountStocks,
+      pending,
+      shipped,
+      cancelled,
+      recent,
+      last30Orders,
+      topItems,
+    ] = await Promise.all([
+      prisma.order.aggregate({
+        where: {
+          ...orderScope,
+          orderedAt: { gte: todayStart, lte: todayEnd },
+          status: { not: 'CANCELADO' },
+        },
+        _sum: { total: true },
+        _count: true,
+      }),
+      prisma.order.aggregate({
+        where: { ...orderScope, orderedAt: { gte: monthStart }, status: { not: 'CANCELADO' } },
+        _sum: { total: true },
+      }),
+      prisma.orderItem.aggregate({
+        where: {
+          order: { ...orderScope, orderedAt: { gte: monthStart }, status: { not: 'CANCELADO' } },
+        },
+        _sum: { quantity: true },
+      }),
+      prisma.orderItem.aggregate({
+        where: {
+          order: { ...orderScope, orderedAt: { gte: monthStart }, status: { not: 'CANCELADO' } },
+        },
+        _sum: { grossProfit: true },
+      }),
+      prisma.accountStock.findMany({
+        where: { accountId },
+        select: { stock: true, minStock: true, productId: true },
+      }),
+      prisma.order.count({ where: { ...orderScope, status: 'AGUARDANDO' } }),
+      prisma.order.count({ where: { ...orderScope, status: 'ENVIADO' } }),
+      prisma.order.count({ where: { ...orderScope, status: 'CANCELADO' } }),
+      prisma.order.findMany({
+        where: orderScope,
+        orderBy: { orderedAt: 'desc' },
+        take: 8,
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          total: true,
+          orderedAt: true,
+          customer: { select: { name: true } },
+        },
+      }),
+      // Chart 30d: só total + data (sem items)
+      prisma.order.findMany({
+        where: { ...orderScope, orderedAt: { gte: last30 }, status: { not: 'CANCELADO' } },
+        select: { orderedAt: true, total: true },
+        orderBy: { orderedAt: 'asc' },
+        take: 2000,
+      }),
+      prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          order: { ...orderScope, orderedAt: { gte: last30 }, status: { not: 'CANCELADO' } },
+        },
+        _sum: { quantity: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+        take: 6,
+      }),
+    ]);
 
     const byDayMap = new Map<string, number>();
     for (let i = 0; i < 30; i++) byDayMap.set(format(subDays(now, 29 - i), 'dd/MM'), 0);
-    for (const o of movements) {
+    for (const o of last30Orders) {
       const d = format(o.orderedAt, 'dd/MM');
       byDayMap.set(d, (byDayMap.get(d) ?? 0) + toNum(o.total));
     }
 
-    const productSales = new Map<string, { name: string; qty: number }>();
-    for (const o of movements) {
-      for (const i of o.items) {
-        const cur = productSales.get(i.productId) ?? { name: i.product.name, qty: 0 };
-        cur.qty += toNum(i.quantity);
-        productSales.set(i.productId, cur);
-      }
-    }
+    const productIds = topItems.map((t) => t.productId);
+    const products = productIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameById = new Map(products.map((p) => [p.id, p.name]));
 
     return {
       account: { code: account.code, name: account.name, cnpj: account.cnpj },
       cards: {
-        soldToday: ordersToday.reduce((a, o) => a + toNum(o.total), 0),
-        soldMonth: ordersMonth.reduce((a, o) => a + toNum(o.total), 0),
-        lucro,
-        unitsSold: ordersMonth.reduce((a, o) => a + o.items.reduce((b, i) => b + toNum(i.quantity), 0), 0),
+        soldToday: toNum(todayAgg._sum.total),
+        soldMonth: toNum(monthAgg._sum.total),
+        lucro: toNum(monthProfit._sum.grossProfit),
+        unitsSold: toNum(monthUnits._sum.quantity),
         stockUnits: accountStocks.reduce((a, r) => a + toNum(r.stock), 0),
         pending,
         shipped,
         cancelled,
         productCount: accountStocks.length,
-        ordersToday: ordersToday.length,
-        lowStock: accountStocks.filter((r) => toNum(r.stock) > 0 && toNum(r.stock) <= toNum(r.minStock)).length,
+        ordersToday: todayAgg._count,
+        lowStock: accountStocks.filter((r) => toNum(r.stock) > 0 && toNum(r.stock) <= toNum(r.minStock))
+          .length,
       },
       salesByDay: [...byDayMap.entries()].map(([date, total]) => ({ date, total })),
-      topProducts: [...productSales.values()].sort((a, b) => b.qty - a.qty).slice(0, 6),
+      topProducts: topItems.map((t) => ({
+        name: nameById.get(t.productId) || t.productId,
+        qty: toNum(t._sum.quantity),
+      })),
       stockChart: [
         { name: 'OK', value: accountStocks.filter((r) => toNum(r.stock) > toNum(r.minStock)).length },
         {
           name: 'Baixo',
-          value: accountStocks.filter((r) => toNum(r.stock) > 0 && toNum(r.stock) <= toNum(r.minStock)).length,
+          value: accountStocks.filter((r) => toNum(r.stock) > 0 && toNum(r.stock) <= toNum(r.minStock))
+            .length,
         },
         { name: 'Zerado', value: accountStocks.filter((r) => toNum(r.stock) <= 0).length },
       ],

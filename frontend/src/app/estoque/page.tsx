@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, toNum } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { AccountCode } from '@pep/shared';
 
 type Product = {
   id: string;
@@ -18,12 +19,19 @@ type Product = {
   costPrice: unknown;
 };
 
+const ACCOUNTS: AccountCode[] = ['P&P', 'RC', 'PCP'];
+
 export default function EstoquePage() {
   const { code } = useAppAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [overview, setOverview] = useState<StockOverviewRow[]>([]);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [transferProduct, setTransferProduct] = useState<Product | null>(null);
+  const [fromAccount, setFromAccount] = useState<AccountCode>('P&P');
+  const [toAccount, setToAccount] = useState<AccountCode>('RC');
+  const [transferQty, setTransferQty] = useState('1');
+  const [transferNote, setTransferNote] = useState('');
   const [tab, setTab] = useState<'conta' | 'planilha'>('conta');
 
   function load(q?: string) {
@@ -62,12 +70,38 @@ export default function EstoquePage() {
     }
   }
 
+  async function onTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!transferProduct) return;
+    try {
+      await api.transferStock(transferProduct.id, {
+        fromAccount,
+        toAccount,
+        quantity: Number(transferQty),
+        note: transferNote || undefined,
+      });
+      toast.success(`Transferido ${transferQty} · ${fromAccount} → ${toAccount}`);
+      setTransferProduct(null);
+      load(search);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro');
+    }
+  }
+
+  function openTransfer(p: Product) {
+    setTransferProduct(p);
+    setFromAccount(code as AccountCode);
+    setToAccount((code === 'P&P' ? 'RC' : 'P&P') as AccountCode);
+    setTransferQty('1');
+    setTransferNote('');
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Estoque · {code}</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">Saldo separado por conta</p>
+          <p className="text-sm text-[var(--muted-foreground)]">Saldo separado por conta · transferência P&amp;P / RC / PCP</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>Novo produto</Button>
       </div>
@@ -93,51 +127,54 @@ export default function EstoquePage() {
       <div className="space-y-2">
         {tab === 'conta' &&
           products.map((p) => (
-          <Card key={p.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
-              <div>
-                <p className="font-medium">
-                  {p.name} <span className="text-xs text-[var(--muted-foreground)]">({p.sku})</span>
-                </p>
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  Estoque {toNum(p.stock).toLocaleString('pt-BR')} · custo {formatCurrency(toNum(p.costPrice))}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    const q = Number(prompt('Qtd entrada') || 0);
-                    if (q > 0) {
-                      await api.adjustStock(p.id, 'ENTRADA', q);
-                      load(search);
-                    }
-                  }}
-                >
-                  + Entrada
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    const q = Number(prompt('Qtd saída') || 0);
-                    if (q > 0) {
-                      try {
-                        await api.adjustStock(p.id, 'SAIDA', q);
+            <Card key={p.id}>
+              <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
+                <div>
+                  <p className="font-medium">
+                    {p.name} <span className="text-xs text-[var(--muted-foreground)]">({p.sku})</span>
+                  </p>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    Estoque {toNum(p.stock).toLocaleString('pt-BR')} · custo {formatCurrency(toNum(p.costPrice))}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const q = Number(prompt('Qtd entrada') || 0);
+                      if (q > 0) {
+                        await api.adjustStock(p.id, 'ENTRADA', q);
                         load(search);
-                      } catch (e) {
-                        toast.error(e instanceof Error ? e.message : 'Erro');
                       }
-                    }
-                  }}
-                >
-                  − Saída
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                    }}
+                  >
+                    + Entrada
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      const q = Number(prompt('Qtd saída') || 0);
+                      if (q > 0) {
+                        try {
+                          await api.adjustStock(p.id, 'SAIDA', q);
+                          load(search);
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : 'Erro');
+                        }
+                      }
+                    }}
+                  >
+                    − Saída
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => openTransfer(p)}>
+                    Transferir
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
 
         {tab === 'planilha' && (
           <Card>
@@ -184,6 +221,69 @@ export default function EstoquePage() {
               <div className="flex gap-2">
                 <Button type="submit">Salvar</Button>
                 <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {transferProduct && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <Card className="w-full max-w-md p-4">
+            <form className="space-y-3" onSubmit={onTransfer}>
+              <div>
+                <p className="font-medium">Transferir estoque</p>
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  {transferProduct.name} ({transferProduct.sku})
+                </p>
+              </div>
+              <label className="block text-xs text-[var(--muted-foreground)]">
+                Origem
+                <select
+                  className="mt-1 w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm"
+                  value={fromAccount}
+                  onChange={(e) => setFromAccount(e.target.value as AccountCode)}
+                >
+                  {ACCOUNTS.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs text-[var(--muted-foreground)]">
+                Destino
+                <select
+                  className="mt-1 w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm"
+                  value={toAccount}
+                  onChange={(e) => setToAccount(e.target.value as AccountCode)}
+                >
+                  {ACCOUNTS.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={transferQty}
+                onChange={(e) => setTransferQty(e.target.value)}
+                placeholder="Quantidade"
+                required
+              />
+              <Input
+                value={transferNote}
+                onChange={(e) => setTransferNote(e.target.value)}
+                placeholder="Observação (opcional)"
+              />
+              <div className="flex gap-2">
+                <Button type="submit">Confirmar</Button>
+                <Button type="button" variant="secondary" onClick={() => setTransferProduct(null)}>
                   Cancelar
                 </Button>
               </div>

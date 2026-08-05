@@ -15,7 +15,7 @@ export default function RelatoriosPage() {
   >([]);
 
   useEffect(() => {
-    Promise.all([api.products(), api.orders({ period: '30' })])
+    Promise.all([api.products(), api.orders({ period: '90', limit: '300' })])
       .then(([p, o]) => {
         setProducts(p.products as typeof products);
         setOrders(o.orders as typeof orders);

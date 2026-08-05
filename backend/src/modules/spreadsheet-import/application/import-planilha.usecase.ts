@@ -136,79 +136,9 @@ export class ImportControleVendasUseCase {
         }
       }
 
-      // Fill missing kit component products
-      for (const kit of parsed.catalog.kits) {
-        if (!productIdBySku.has(kit.componentSku)) {
-          const row = await prisma.product.upsert({
-            where: { companyId_sku: { companyId, sku: kit.componentSku } },
-            create: {
-              companyId,
-              sku: kit.componentSku,
-              name: kit.componentSku,
-              costPrice: 0,
-              avgCost: 0,
-              unit: 'UN',
-            },
-            update: {},
-          });
-          productIdBySku.set(kit.componentSku, row.id);
-        }
-        if (!productIdBySku.has(kit.kitSku)) {
-          const row = await prisma.product.upsert({
-            where: { companyId_sku: { companyId, sku: kit.kitSku } },
-            create: {
-              companyId,
-              sku: kit.kitSku,
-              name: kit.kitSku,
-              costPrice: 0,
-              avgCost: 0,
-              unit: 'UN',
-            },
-            update: {},
-          });
-          productIdBySku.set(kit.kitSku, row.id);
-        }
-
-        const kitId = productIdBySku.get(kit.kitSku)!;
-        const componentId = productIdBySku.get(kit.componentSku)!;
-        await prisma.productKitComponent.upsert({
-          where: {
-            kitProductId_componentProductId: {
-              kitProductId: kitId,
-              componentProductId: componentId,
-            },
-          },
-          create: {
-            kitProductId: kitId,
-            componentProductId: componentId,
-            quantity: kit.quantity,
-          },
-          update: { quantity: kit.quantity },
-        });
-        kitsUpserted += 1;
-      }
-
-      // Enrich kit costs from components when missing
-      for (const [sku, id] of productIdBySku) {
-        const product = await prisma.product.findUnique({ where: { id } });
-        if (!product || Number(product.costPrice) > 0) continue;
-        const comps = await prisma.productKitComponent.findMany({
-          where: { kitProductId: id },
-          include: { componentProduct: true },
-        });
-        if (!comps.length) continue;
-        const cost = comps.reduce(
-          (acc, c) => acc + Number(c.quantity) * Number(c.componentProduct.costPrice),
-          0,
-        );
-        if (cost > 0) {
-          await prisma.product.update({
-            where: { id },
-            data: { costPrice: cost, avgCost: cost },
-          });
-        }
-        void sku;
-      }
+      // Kits desativados: SKUs PAR*/KIT* são produtos unitários (sem BOM).
+      void parsed.catalog.kits;
+      kitsUpserted = 0;
 
       const taxByAccountId = new Map<string, number>();
       const taxRows = await prisma.accountTaxRate.findMany({ where: { companyId, channel: 'ML' } });

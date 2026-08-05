@@ -28,6 +28,7 @@ export class ListFinanceUseCase {
         ...(type && type !== 'ALL' ? { type } : {}),
       },
       orderBy: { createdAt: 'desc' },
+      take: 300,
     });
   }
 }
@@ -70,27 +71,51 @@ export class CreateFinanceUseCase {
 export class FinanceSummaryUseCase {
   async execute(companyId: string, activeCode?: string) {
     const account = await resolveActiveAccount(companyId, activeCode);
-    const entries = await prisma.financeEntry.findMany({
-      where: accountFinanceWhere(companyId, account.id, account.code),
-    });
-    const entradas = entries
-      .filter((e) => e.type === 'ENTRADA' && e.status !== 'CANCELADO')
-      .reduce((a, e) => a + toNum(e.amount), 0);
-    const saidas = entries
-      .filter((e) => e.type === 'SAIDA' && e.status !== 'CANCELADO')
-      .reduce((a, e) => a + toNum(e.amount), 0);
+    const where = {
+      ...accountFinanceWhere(companyId, account.id, account.code),
+      status: { not: 'CANCELADO' as const },
+    };
+    const [entradasAgg, saidasAgg, aPagarAgg, aReceberAgg, recent] = await Promise.all([
+      prisma.financeEntry.aggregate({
+        where: { ...where, type: 'ENTRADA' },
+        _sum: { amount: true },
+      }),
+      prisma.financeEntry.aggregate({
+        where: { ...where, type: 'SAIDA' },
+        _sum: { amount: true },
+      }),
+      prisma.financeEntry.aggregate({
+        where: {
+          ...accountFinanceWhere(companyId, account.id, account.code),
+          type: 'SAIDA',
+          status: 'PENDENTE',
+        },
+        _sum: { amount: true },
+      }),
+      prisma.financeEntry.aggregate({
+        where: {
+          ...accountFinanceWhere(companyId, account.id, account.code),
+          type: 'ENTRADA',
+          status: 'PENDENTE',
+        },
+        _sum: { amount: true },
+      }),
+      prisma.financeEntry.findMany({
+        where: accountFinanceWhere(companyId, account.id, account.code),
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+    ]);
+    const entradas = toNum(entradasAgg._sum.amount);
+    const saidas = toNum(saidasAgg._sum.amount);
     return {
       accountCode: account.code,
       entradas,
       saidas,
       lucro: entradas - saidas,
-      aPagar: entries
-        .filter((e) => e.type === 'SAIDA' && e.status === 'PENDENTE')
-        .reduce((a, e) => a + toNum(e.amount), 0),
-      aReceber: entries
-        .filter((e) => e.type === 'ENTRADA' && e.status === 'PENDENTE')
-        .reduce((a, e) => a + toNum(e.amount), 0),
-      entries,
+      aPagar: toNum(aPagarAgg._sum.amount),
+      aReceber: toNum(aReceberAgg._sum.amount),
+      entries: recent,
     };
   }
 }

@@ -3,8 +3,9 @@
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 const TOKEN_KEY = 'bild_token';
 const FETCH_TIMEOUT_MS = 20000;
+const IMPORT_TIMEOUT_MS = 120000;
 
-type ApiOptions = RequestInit & { json?: unknown };
+type ApiOptions = RequestInit & { json?: unknown; timeoutMs?: number };
 
 function getToken() {
   if (typeof window === 'undefined') return null;
@@ -18,9 +19,9 @@ function setToken(token: string | null) {
 }
 
 async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { json, headers, ...rest } = options;
+  const { json, headers, timeoutMs, ...rest } = options;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs ?? FETCH_TIMEOUT_MS);
   const token = getToken();
 
   try {
@@ -43,7 +44,7 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
     return data as T;
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new Error('API nÃ£o respondeu a tempo. Verifique se a API estÃ¡ no ar.');
+      throw new Error('API não respondeu a tempo. Verifique se a API está no ar.');
     }
     throw e;
   } finally {
@@ -103,16 +104,34 @@ export const api = {
     request<{ ok: true }>('/products', { method: 'POST', json: body }),
   adjustStock: (id: string, type: 'ENTRADA' | 'SAIDA', quantity: number) =>
     request<{ ok: true }>(`/products/${id}/stock`, { method: 'POST', json: { type, quantity } }),
+  transferStock: (
+    id: string,
+    body: { fromAccount: string; toAccount: string; quantity: number; note?: string },
+  ) => request<{ ok: true; from: string; to: string; quantity: number }>(`/products/${id}/transfer`, {
+    method: 'POST',
+    json: body,
+  }),
   deleteProduct: (id: string) => request<{ ok: true }>(`/products/${id}`, { method: 'DELETE' }),
   financeSummary: () => request<FinanceSummary>('/finance/summary'),
   financeList: () => request<{ entries: unknown[] }>('/finance'),
   createFinance: (body: Record<string, unknown>) =>
     request<{ ok: true }>('/finance', { method: 'POST', json: body }),
+  importMlVendas: (fileBase64: string, fileName: string) =>
+    request<ImportMlVendasResult>('/imports/mercadolivre-vendas', {
+      method: 'POST',
+      json: { fileBase64, fileName },
+      timeoutMs: IMPORT_TIMEOUT_MS,
+    }),
   importControleVendas: (fileBase64: string, fileName: string) =>
     request<ImportControleVendasResult>('/imports/controle-vendas', {
       method: 'POST',
       json: { fileBase64, fileName },
+      timeoutMs: IMPORT_TIMEOUT_MS,
     }),
+  customers: (q: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(q).toString();
+    return request<CustomersResponse>(`/customers${qs ? `?${qs}` : ''}`);
+  },
   sales: (q: Record<string, string> = {}) => {
     const qs = new URLSearchParams(q).toString();
     return request<SalesResponse>(`/sales${qs ? `?${qs}` : ''}`);
@@ -168,6 +187,8 @@ export type SalesResponse = {
     targetMarginPercent: number;
   };
   rows: SaleRow[];
+  truncated?: boolean;
+  limit?: number;
   totals: {
     grossRevenue: number;
     netRevenue: number;
@@ -176,6 +197,7 @@ export type SalesResponse = {
     units: number;
     marginPercent: number;
     count: number;
+    listed?: number;
     belowTarget: number;
   };
 };
@@ -184,6 +206,18 @@ export type MarginSettings = {
   account: AccountCode;
   ratePercent: number;
   targetMarginPercent: number;
+};
+
+export type ImportMlVendasResult = {
+  ok: true;
+  importId: string;
+  accountCode: string;
+  salesImported: number;
+  salesUpdated: number;
+  salesSkipped: number;
+  productsCreated: number;
+  customersUpserted: number;
+  stockMovements: number;
 };
 
 export type ImportControleVendasResult = {
@@ -197,6 +231,36 @@ export type ImportControleVendasResult = {
   stockUpdated: number;
   deliveriesImported: number;
   financeImported: number;
+};
+
+export type CustomerRow = {
+  id: string;
+  name: string;
+  phone: string | null;
+  document: string | null;
+  email: string | null;
+  city: string | null;
+  state: string | null;
+  marketplace: string | null;
+  ordersCount: number;
+  lastOrderAt: string | null;
+  lastOrderTotal: number | null;
+  lastOrderNumber: string | null;
+  recentOrders: Array<{
+    id: string;
+    number: string;
+    orderedAt: string;
+    total: number;
+    status: string;
+    platform: string;
+  }>;
+};
+
+export type CustomersResponse = {
+  total: number;
+  page: number;
+  pageSize: number;
+  customers: CustomerRow[];
 };
 
 export type DeliveryRow = {

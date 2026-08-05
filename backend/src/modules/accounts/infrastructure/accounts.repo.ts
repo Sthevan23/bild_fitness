@@ -38,20 +38,20 @@ export async function ensureSalesAccounts(companyId: string) {
     where: { companyId },
     select: { id: true, stock: true, minStock: true },
   });
-  for (const product of products) {
-    for (const account of accounts) {
-      await prisma.accountStock.upsert({
-        where: { accountId_productId: { accountId: account.id, productId: product.id } },
-        create: {
-          accountId: account.id,
-          productId: product.id,
-          stock: product.stock,
-          minStock: product.minStock,
-        },
-        update: {},
-      });
-    }
-  }
+  if (!products.length) return accounts;
+
+  // createMany em lote em vez de upsert sequencial (evita tempestade de queries)
+  await prisma.accountStock.createMany({
+    data: products.flatMap((product) =>
+      accounts.map((account) => ({
+        accountId: account.id,
+        productId: product.id,
+        stock: product.stock,
+        minStock: product.minStock,
+      })),
+    ),
+    skipDuplicates: true,
+  });
   return accounts;
 }
 

@@ -5,6 +5,7 @@ import {
   DeleteProductUseCase,
   ListProductsUseCase,
   StockOverviewUseCase,
+  TransferStockUseCase,
 } from '../application/products.usecases.js';
 import { authMiddleware, type AuthedRequest } from '../../../shared/auth.js';
 import { isAppError } from '../../../shared/errors.js';
@@ -14,6 +15,7 @@ const list = new ListProductsUseCase();
 const overview = new StockOverviewUseCase();
 const create = new CreateProductUseCase();
 const adjust = new AdjustStockUseCase();
+const transfer = new TransferStockUseCase();
 const del = new DeleteProductUseCase();
 
 productsRouter.use(authMiddleware);
@@ -66,6 +68,26 @@ productsRouter.post('/:id/stock', async (req: AuthedRequest, res) => {
       req.body.type as 'ENTRADA' | 'SAIDA',
       Number(req.body.quantity),
       req.cookies?.bild_active_account,
+    );
+    res.json(result);
+  } catch (e) {
+    const status = isAppError(e) ? e.statusCode : 400;
+    res.status(status).json({ error: e instanceof Error ? e.message : 'Erro' });
+  }
+});
+
+productsRouter.post('/:id/transfer', async (req: AuthedRequest, res) => {
+  try {
+    const result = await transfer.execute(
+      req.user!.companyId,
+      req.user!.id,
+      String(req.params.id),
+      {
+        fromAccount: String(req.body.fromAccount || ''),
+        toAccount: String(req.body.toAccount || ''),
+        quantity: Number(req.body.quantity),
+        note: req.body.note ? String(req.body.note) : undefined,
+      },
     );
     res.json(result);
   } catch (e) {
