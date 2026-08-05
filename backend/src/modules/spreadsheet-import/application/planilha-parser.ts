@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { normalizeAccountCode, type AccountCode } from '@pep/shared';
 
 const require = createRequire(import.meta.url);
-const XLSX = require('xlsx') as typeof import('xlsx');
+const XLSX = require('@e965/xlsx') as typeof import('@e965/xlsx');
 
 const PT_MONTHS: Record<string, number> = {
   janeiro: 0,
@@ -179,7 +179,7 @@ export type ParsedSpreadsheet = {
   finance: ParsedCostAllocation[];
 };
 
-function sheetRows(wb: import('xlsx').WorkBook, name: string): unknown[][] {
+function sheetRows(wb: import('@e965/xlsx').WorkBook, name: string): unknown[][] {
   const ws = wb.Sheets[name];
   if (!ws) return [];
   return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false }) as unknown[][];

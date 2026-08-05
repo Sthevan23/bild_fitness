@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import { readFileSync } from 'fs';
 import type { OrderStatus } from '@prisma/client';
 
