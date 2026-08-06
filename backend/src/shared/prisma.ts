@@ -61,17 +61,11 @@ async function ensureAdmin(client: PrismaClient) {
         data: { active: true, role: 'ADMIN' },
       });
     }
-    // Catálogo: só preenche se ainda estiver vazio (Hostinger já existente)
-    const productCount = await client.product.count({ where: { companyId: existing.companyId } });
-    if (productCount < 20) {
-      const { upsertCatalogProducts } = await import('../modules/products/application/catalog.js');
-      const n = await upsertCatalogProducts(client, existing.companyId);
-      console.log(`[db] catálogo upserted (${n} produtos)`);
-    }
+    // Catálogo em background — NÃO bloqueia login/boot
+    void seedCatalogIfNeeded(client, existing.companyId);
     return;
   }
 
-  const { upsertCatalogProducts } = await import('../modules/products/application/catalog.js');
   const password = await bcrypt.hash('admin123', 10);
   const company = await client.company.create({
     data: {
@@ -96,8 +90,20 @@ async function ensureAdmin(client: PrismaClient) {
       update: { active: true, name: code },
     });
   }
-  await upsertCatalogProducts(client, company.id);
+  void seedCatalogIfNeeded(client, company.id);
   console.log('[db] admin bootstrap OK — admin@bildfitness.local / admin123');
+}
+
+async function seedCatalogIfNeeded(client: PrismaClient, companyId: string) {
+  try {
+    const productCount = await client.product.count({ where: { companyId } });
+    if (productCount >= 20) return;
+    const { upsertCatalogProducts } = await import('../modules/products/application/catalog.js');
+    const n = await upsertCatalogProducts(client, companyId);
+    console.log(`[db] catálogo upserted (${n} produtos)`);
+  } catch (e) {
+    console.error('[db] catálogo background failed:', e instanceof Error ? e.message : e);
+  }
 }
 
 export async function initPrisma() {

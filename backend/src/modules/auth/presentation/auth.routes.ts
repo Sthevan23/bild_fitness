@@ -18,7 +18,15 @@ const updateTheme = new UpdateThemeUseCase();
 authRouter.post('/login', async (req, res) => {
   try {
     const { initPrisma } = await import('../../../shared/prisma.js');
-    await initPrisma();
+    await Promise.race([
+      initPrisma(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Banco demorou para responder. Tente de novo em alguns segundos.')),
+          12_000,
+        ),
+      ),
+    ]);
     const user = await login.execute(req.body);
     const token = signToken(user);
     setAuthCookie(res, token);
@@ -31,8 +39,10 @@ authRouter.post('/login', async (req, res) => {
       ? e.message
       : /credentials|Authentication failed|Access denied/i.test(raw)
         ? 'Falha de conexão com o banco. Verifique DB_USER/DB_PASS.'
-        : /timeout|ECONNREFUSED|ENOTFOUND|connect|pool|MySQL/i.test(raw)
-          ? 'Não foi possível conectar ao MySQL. Use DB_HOST=127.0.0.1.'
+        : /timeout|ECONNREFUSED|ENOTFOUND|connect|pool|MySQL|demorou/i.test(raw)
+          ? raw.includes('demorou')
+            ? raw
+            : 'Não foi possível conectar ao MySQL. Use DB_HOST=127.0.0.1.'
           : raw;
     res.status(status).json({ error: message });
   }

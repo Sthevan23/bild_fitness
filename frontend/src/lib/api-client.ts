@@ -3,6 +3,7 @@
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 const TOKEN_KEY = 'bild_token';
 const FETCH_TIMEOUT_MS = 20000;
+const LOGIN_TIMEOUT_MS = 25000;
 const IMPORT_TIMEOUT_MS = 120000;
 
 type ApiOptions = RequestInit & { json?: unknown; timeoutMs?: number };
@@ -59,6 +60,7 @@ export const api = {
     const res = await request<{ ok: true; user: SessionUser; token: string }>('/auth/login', {
       method: 'POST',
       json: { email, password },
+      timeoutMs: LOGIN_TIMEOUT_MS,
     });
     setToken(res.token);
     return res;
