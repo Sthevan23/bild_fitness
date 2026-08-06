@@ -22,8 +22,13 @@ authRouter.post('/login', async (req, res) => {
       initPrisma(),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error('Banco demorou para responder. Tente de novo em alguns segundos.')),
-          12_000,
+          () =>
+            reject(
+              new Error(
+                'API ainda conectando no banco. Aguarde 5 segundos e tente de novo (Reimplantar a API no hPanel se continuar).',
+              ),
+            ),
+          10_000,
         ),
       ),
     ]);
@@ -39,10 +44,8 @@ authRouter.post('/login', async (req, res) => {
       ? e.message
       : /credentials|Authentication failed|Access denied/i.test(raw)
         ? 'Falha de conexão com o banco. Verifique DB_USER/DB_PASS.'
-        : /timeout|ECONNREFUSED|ENOTFOUND|connect|pool|MySQL|demorou/i.test(raw)
-          ? raw.includes('demorou')
-            ? raw
-            : 'Não foi possível conectar ao MySQL. Use DB_HOST=127.0.0.1.'
+        : /timeout|ECONNREFUSED|ENOTFOUND|connect|pool|MySQL|conectando|Reimplantar/i.test(raw)
+          ? raw
           : raw;
     res.status(status).json({ error: message });
   }
